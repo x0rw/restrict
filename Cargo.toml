@@ -1,0 +1,22 @@
+[package]
+name = "restrict" 
+version = "0.1.0"
+edition = "2021" 
+description = "A short, concise description of what your crate does." 
+license = "MIT"
+repository = "https://github.com/x0rw/restrict"
+documentation = "https://docs.rs/restrict/latest"
+readme = "README.md"   
+keywords = ["sandbox", "linux", "security", "syscall", "policy", "restriction"]
+categories = ["os::linux-apis", "api-bindings", "security"] 
+authors = ["x0rw <mahdi.svt5@gmail.com>"] 
+
+[dependencies]
+libseccomp-sys = "0.3.0"
+thiserror = "1"
+[lib]
+name = "restrict"
+
+# [build-dependencies]
+# cc = "1.0"           # To compile the C helper
+# pkg-config = "0.3"   # To find libseccomp flags
