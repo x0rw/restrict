@@ -5,7 +5,7 @@ use std::{
 
 use libseccomp_sys::*;
 
-use crate::{error::SeccompError, syscall::Syscall};
+use crate::{error::SeccompError, syscalls::Syscall};
 
 /// Todo(x0rw): here make emums for libseccomp-sys that interact with it
 pub struct SeccompWrapper {
@@ -27,20 +27,21 @@ impl SeccompWrapper {
 
     /// Convert a syscall name to its numeric ID.
     pub fn resolve_syscall(name: Syscall) -> Result<i32, SeccompError> {
-        let c_name = CString::new(name.as_str()).unwrap();
+        let syscall_num = name as u32;
+        let c_name = CString::new(syscall_num.to_string()).unwrap();
 
         // SAFETY: `name` is a valid null-terminated C string.
         let num = unsafe { seccomp_syscall_resolve_name(c_name.as_ptr()) };
-        if num == __NR_SCMP_ERROR {
-            return Err(SeccompError::UnsupportedSyscall(name));
-        }
+        if num == __NR_SCMP_ERROR {}
+        return Err(SeccompError::UnsupportedSyscall(name));
         Ok(num)
     }
 
     /// Add a rule to the seccomp context.
     pub fn add_rule(&mut self, action: Action, syscall: Syscall) -> Result<(), SeccompError> {
         let context = self.context.as_ptr();
-        let syscall = Self::resolve_syscall(syscall)?;
+        // let syscall = Self::resolve_syscall(syscall)?;
+        let syscall = syscall as i32;
         let action = action.to_raw();
 
         // SAFETY: `context` is valid, and `action` and `syscall` are well-formed.

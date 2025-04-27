@@ -1,7 +1,7 @@
 use crate::{
     error::SeccompError,
     modules::module::Modules,
-    syscall::Syscall,
+    syscalls::Syscall,
     wrapper::{Action, SeccompWrapper},
 };
 

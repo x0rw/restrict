@@ -10,13 +10,18 @@ readme = "README.md"
 keywords = ["sandbox", "linux", "security", "syscall", "policy", "restriction"]
 categories = ["os::linux-apis", "api-bindings", "security"] 
 authors = ["x0rw <mahdi.svt5@gmail.com>"] 
+build = 'build.rs'
 
 [dependencies]
 libseccomp-sys = "0.3.0"
+regex = "1.11.1"
 thiserror = "1"
+num = "0.4"
 [lib]
 name = "restrict"
 
-# [build-dependencies]
+[build-dependencies]
+regex = "1.11.1"
+
 # cc = "1.0"           # To compile the C helper
 # pkg-config = "0.3"   # To find libseccomp flags

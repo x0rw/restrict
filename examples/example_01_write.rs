@@ -1,7 +1,8 @@
 use restrict::*;
 
 use policy::SeccompPolicy;
-use syscall::Syscall;
+// use syscall::Syscall;
+use syscalls::Syscall;
 fn main() -> Result<(), SeccompError> {
     println!("This will process will be killed!");
 

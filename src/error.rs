@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::syscall::Syscall;
+use crate::syscalls::Syscall;
 #[derive(Debug, Error)]
 pub enum SeccompError {
     #[error("Failed to initilize seccomp context")]

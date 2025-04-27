@@ -12,3 +12,4 @@ pub mod syscall;
 pub mod wrapper;
 pub use error::SeccompError;
 pub mod modules;
+pub mod syscalls;
