@@ -8,6 +8,7 @@ use libseccomp_sys::*;
 use crate::{error::SeccompError, syscalls::Syscall};
 
 /// Todo(x0rw): here make emums for libseccomp-sys that interact with it
+#[derive(Debug)]
 pub struct SeccompWrapper {
     pub context: NonNull<c_void>,
     pub default_action: Action,
@@ -32,8 +33,9 @@ impl SeccompWrapper {
 
         // SAFETY: `name` is a valid null-terminated C string.
         let num = unsafe { seccomp_syscall_resolve_name(c_name.as_ptr()) };
-        if num == __NR_SCMP_ERROR {}
-        return Err(SeccompError::UnsupportedSyscall(name));
+        if num == __NR_SCMP_ERROR {
+            return Err(SeccompError::UnsupportedSyscall(name));
+        }
         Ok(num)
     }
 

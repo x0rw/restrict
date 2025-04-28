@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::syscalls::Syscall;
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum SeccompError {
     #[error("Failed to initilize seccomp context")]
     InitFailed,
@@ -30,6 +30,9 @@ pub enum SeccompError {
     #[error("Failed to load the context")]
     LoadError,
 
-    #[error("Redundant allow rule for {0:?} when default is Allow.")]
+    #[error("Redundant deny rule for {0:?} when default is Deny all.")]
+    RedundantDenyRule(Syscall),
+
+    #[error("Redundant allow rule for {0:?} when default is Allow all.")]
     RedundantAllowRule(Syscall),
 }

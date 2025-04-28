@@ -23,5 +23,9 @@ name = "restrict"
 [build-dependencies]
 regex = "1.11.1"
 
+[[bin]]
+name = "create_file_test"
+path = "tests/src/create_file.rs"
+
 # cc = "1.0"           # To compile the C helper
 # pkg-config = "0.3"   # To find libseccomp flags
