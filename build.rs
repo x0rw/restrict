@@ -40,7 +40,11 @@ fn main() {
     let content = read_to_string(&header_path).expect("Failed to read syscall header file");
     let syscalls = extract_syscalls(&content);
 
-    let mut out = File::create("src/syscall.rs").expect("Could not create src/syscall.rs");
+    let out_dir = env::var("OUT_DIR").expect("OUT_DIR environment variable not set");
+    let dest_path = Path::new(&out_dir).join("syscall_gen.rs");
+
+    let mut out = File::create(dest_path).expect("Could not create src/syscall.rs");
+
     out.write_all(generate_linux_syscall_enum(&syscalls, header_path).as_bytes())
         .expect("Failed to write generated syscalls");
 }
