@@ -2,12 +2,12 @@
 name = "restrict" 
 version = "0.1.0"
 edition = "2021" 
-description = "A short, concise description of what your crate does." 
+description = "A DX-focused crate that lets you allow or deny Linux syscalls using an ergonomic, auto-generated enum tailored to your system architecture."
 license = "MIT"
 repository = "https://github.com/x0rw/restrict"
 documentation = "https://docs.rs/restrict/latest"
 readme = "README.md"   
-keywords = ["sandbox", "linux", "security", "syscall", "policy", "restriction"]
+keywords = [ "linux", "security", "syscall", "policy", "sandbox"]
 categories = ["os::linux-apis", "api-bindings", "security"] 
 authors = ["x0rw <mahdi.svt5@gmail.com>"] 
 build = 'build.rs'
@@ -15,6 +15,7 @@ build = 'build.rs'
 [dependencies]
 libseccomp-sys = "0.3.0"
 thiserror = "1"
+
 [lib]
 name = "restrict"
 
