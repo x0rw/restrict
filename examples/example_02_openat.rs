@@ -1,12 +1,12 @@
 use std::fs;
 
-use restrict::{syscalls::Syscall, *};
+use restrict::{syscall::Syscall, *};
 
-use policy::SeccompPolicy;
+use policy::Policy;
 fn main() -> Result<(), SeccompError> {
     println!("This will process will be killed!");
 
-    let mut filter = SeccompPolicy::allow_all()?;
+    let mut filter = Policy::allow_all()?;
     filter.deny(Syscall::Openat)?;
 
     println!("This should work");

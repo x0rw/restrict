@@ -8,8 +8,7 @@
 
 pub mod error;
 pub mod policy;
-pub mod syscall;
 mod wrapper;
 pub use error::SeccompError;
 pub mod modules;
-pub mod syscalls;
+pub mod syscall;

@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::syscalls::Syscall;
+use crate::syscall::Syscall;
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum SeccompError {
     #[error("Failed to initilize seccomp context")]
@@ -10,7 +10,7 @@ pub enum SeccompError {
     AddRuleFailed(Syscall),
 
     #[error("Unsupported syscall name: {0:?}")]
-    UnsupportedSyscall(Syscall),
+    UnsupportedSyscall(String),
 
     #[error("libseccomp returned error code {0}")]
     LibSeccompError(i32),

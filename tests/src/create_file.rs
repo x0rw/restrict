@@ -1,12 +1,17 @@
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::Write;
 use std::process;
 
-fn main() {
-    // Try to open a file (for testing purposes)
-    let file = File::create("test.txt");
+use restrict::policy::Policy;
+use restrict::syscall::Syscall;
 
-    // If this succeeds, write some data to the file
+fn main() {
+    let mut policy = Policy::allow_all().expect("Failed to create policy");
+    policy
+        .deny(Syscall::Write)
+        .expect("Failed to deny write syscall");
+    policy.apply().expect("could not apply the policy");
+    let file = File::create("test.txt");
     if let Ok(mut file) = file {
         if let Err(e) = writeln!(file, "This is a test.") {
             eprintln!("Error writing to file: {}", e);

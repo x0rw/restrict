@@ -2,24 +2,24 @@ use restrict::*;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use restrict::policy::SeccompPolicy;
-    use syscalls::Syscall;
+    use restrict::policy::Policy;
+    use syscall::Syscall;
 
     #[test]
     fn test_create_policy_with_default_action_allow() {
-        let policy = SeccompPolicy::allow_all();
+        let policy = Policy::allow_all();
         assert!(policy.is_ok(), "Allow all policy creation failed");
     }
 
     #[test]
     fn test_create_policy_with_default_action_deny() {
-        let policy = SeccompPolicy::deny_all();
+        let policy = Policy::deny_all();
         assert!(policy.is_ok(), "Deny all policy creation failed");
     }
 
     #[test]
     fn test_redundunt_allow_policy() {
-        let mut policy = SeccompPolicy::allow_all().unwrap();
+        let mut policy = Policy::allow_all().unwrap();
         let result = policy.allow(Syscall::Read);
 
         assert_eq!(
@@ -31,7 +31,7 @@ mod tests {
 
     #[test]
     fn test_redundunt_deny_policy() {
-        let mut policy = SeccompPolicy::deny_all().unwrap();
+        let mut policy = Policy::deny_all().unwrap();
         let result = policy.deny(Syscall::Read);
 
         assert_eq!(
@@ -43,7 +43,7 @@ mod tests {
 
     #[test]
     fn test_policy_rules() {
-        let mut policy = SeccompPolicy::deny_all().unwrap();
+        let mut policy = Policy::deny_all().unwrap();
         let result = policy
             .allow(Syscall::Read)
             .unwrap()
@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn test_policy_rules_deny() {
-        let mut policy = SeccompPolicy::allow_all().unwrap();
+        let mut policy = Policy::allow_all().unwrap();
         let result = policy
             .deny(Syscall::Read)
             .unwrap()

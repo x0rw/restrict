@@ -5,7 +5,7 @@ use std::{
 
 use libseccomp_sys::*;
 
-use crate::{error::SeccompError, syscalls::Syscall};
+use crate::{error::SeccompError, syscall::Syscall};
 
 /// Todo(x0rw): here make emums for libseccomp-sys that interact with it
 #[derive(Debug)]
@@ -27,14 +27,13 @@ impl SeccompWrapper {
     }
 
     /// Convert a syscall name to its numeric ID.
-    pub fn resolve_syscall(name: Syscall) -> Result<i32, SeccompError> {
-        let syscall_num = name as u32;
-        let c_name = CString::new(syscall_num.to_string()).unwrap();
+    pub fn resolve_syscall(name: &str) -> Result<i32, SeccompError> {
+        let c_name = CString::new(name).unwrap();
 
         // SAFETY: `name` is a valid null-terminated C string.
         let num = unsafe { seccomp_syscall_resolve_name(c_name.as_ptr()) };
         if num == __NR_SCMP_ERROR {
-            return Err(SeccompError::UnsupportedSyscall(name));
+            return Err(SeccompError::UnsupportedSyscall(name.to_string()));
         }
         Ok(num)
     }
@@ -84,5 +83,27 @@ impl Action {
             Self::Kill => SCMP_ACT_KILL_PROCESS,
             Self::Errno(code) => SCMP_ACT_ERRNO(code),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wrapper_resolve_syscall() {
+        let open_syscall = SeccompWrapper::resolve_syscall("open").unwrap();
+        // compare with the generated syscall.rs
+        assert_eq!(open_syscall, Syscall::Open as i32);
+    }
+
+    #[test]
+    fn invalid_resolve_syscall() {
+        let syscall_name = "InvalidSyscall";
+        let open_syscall = SeccompWrapper::resolve_syscall(syscall_name);
+        assert_eq!(
+            open_syscall.unwrap_err(),
+            SeccompError::UnsupportedSyscall(syscall_name.to_string())
+        );
     }
 }

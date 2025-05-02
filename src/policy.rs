@@ -1,10 +1,10 @@
 use crate::{
     error::SeccompError,
-    syscalls::Syscall,
+    syscall::Syscall,
     wrapper::{Action, SeccompWrapper},
 };
 
-/// Seccomp filters of syscalls and actions
+/// Seccomp filters of syscall and actions
 #[derive(Debug)]
 pub struct SeccompFilter {
     syscall: Syscall,
@@ -22,20 +22,20 @@ impl SeccompFilter {
     }
 
     /// get this filter's action
-    fn get_action(&self) -> Syscall {
-        return self.syscall;
+    fn get_action(&self) -> Action {
+        return self.action;
     }
 }
 
 #[derive(Debug)]
-pub struct SeccompPolicy {
+pub struct Policy {
     rules: Vec<SeccompFilter>,
     context: Option<SeccompWrapper>,
 }
 
 /// High-level seccomp policy manager.
 /// Safe wrapper: no unsafe blocks or raw pointers.
-impl SeccompPolicy {
+impl Policy {
     /// use modules
     // pub fn use_module(module: Modules) {}
     /// Create a new policy with the given default action.
@@ -47,7 +47,7 @@ impl SeccompPolicy {
         })
     }
 
-    /// Allow all syscalls by default.
+    /// Allow all syscall by default.
     pub fn allow_all() -> Result<Self, SeccompError> {
         Self::new(Action::Allow)
     }
@@ -90,7 +90,7 @@ impl SeccompPolicy {
         let context = context_option.ok_or(SeccompError::EmptyContext)?;
 
         for rule in &self.rules {
-            context.add_rule(rule.action, rule.syscall)?;
+            context.add_rule(rule.get_action(), rule.get_syscall())?;
         }
 
         context.load()?; // Finalize and load the seccomp filters.
@@ -104,8 +104,8 @@ impl SeccompPolicy {
         self.rules.len()
     }
 
+    /// List allowed syscalls
     pub fn list_allowed_syscalls(&self) -> Vec<Syscall> {
-        // List allowed syscalls
         let rules = &self.rules;
         rules
             .iter()
@@ -114,8 +114,8 @@ impl SeccompPolicy {
             .collect()
     }
 
+    /// List allowed syscalls
     pub fn list_killed_syscalls(&self) -> Vec<Syscall> {
-        // List allowed syscalls
         let rules = &self.rules;
         rules
             .iter()
