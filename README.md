@@ -35,8 +35,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Your program continues safely here
     Ok(())
 }
+```
 
 Or, for a stricter base policy:
+
 ```rust
 use restrict::{Policy, Syscall};
 
@@ -51,8 +53,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // only allow read and write
     Ok(())
 }
-```
-```
 ```
 
 ## 🛠️ API Overview
@@ -80,9 +80,7 @@ Retrieve the list of syscalls you’ve denied(by `deny()`).
 
 ## 📦 Generated Syscall Enum
 During build, `restrict` parses your system headers (e.g. /usr/include/asm/unistd_64.h) and emits:
-
 ```rust
-```
 /// System call list generated from `/usr/include/asm/unistd_64.h`
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Syscall {
@@ -92,13 +90,10 @@ pub enum Syscall {
     // … etc …
 }
 ```
-```
 
 This ensures accuracy across architectures (x86_64, aarch64, etc.).
 To override the header location:
 
-```rust
 ```sh
 SYSCALL_INCLUDE_DIR=/path/to/other/asm cargo build
-```
 ```
