@@ -1,7 +1,4 @@
-use std::{
-    ffi::{c_void, CString},
-    ptr::NonNull,
-};
+use std::{ffi::c_void, ptr::NonNull};
 
 use libseccomp_sys::*;
 
@@ -26,8 +23,10 @@ impl SeccompWrapper {
         })
     }
 
+    #[cfg(test)]
     /// Convert a syscall name to its numeric ID.
     pub fn resolve_syscall(name: &str) -> Result<i32, SeccompError> {
+        use std::ffi::CString;
         let c_name = CString::new(name).unwrap();
 
         // SAFETY: `name` is a valid null-terminated C string.

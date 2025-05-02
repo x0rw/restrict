@@ -4,7 +4,7 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::expect_used)]
 #![warn(clippy::missing_safety_doc)]
-#![warn(clippy::undocumented_unsafe_blocks)]
+#![deny(clippy::missing_document)]
 
 pub mod error;
 pub mod policy;
