@@ -6,13 +6,13 @@ use crate::{error::SeccompError, syscall::Syscall};
 
 /// Todo(x0rw): here make emums for libseccomp-sys that interact with it
 #[derive(Debug)]
-pub struct SeccompWrapper {
+pub(crate) struct SeccompWrapper {
     pub context: NonNull<c_void>,
     pub default_action: Action,
 }
 impl SeccompWrapper {
     /// Create a new seccomp context with the given default action.
-    pub fn init_context(default_action: Action) -> Result<Self, SeccompError> {
+    pub(crate) fn init_context(default_action: Action) -> Result<Self, SeccompError> {
         // SAFETY: `seccomp_init` returns a raw context. Assumes `default_action` is valid.
         let context_ptr = unsafe { seccomp_init(default_action.to_raw()) };
         let context = NonNull::new(context_ptr).ok_or(SeccompError::InitContextFailed)?;
@@ -25,7 +25,7 @@ impl SeccompWrapper {
 
     #[cfg(test)]
     /// Convert a syscall name to its numeric ID.
-    pub fn resolve_syscall(name: &str) -> Result<i32, SeccompError> {
+    pub(crate) fn resolve_syscall(name: &str) -> Result<i32, SeccompError> {
         use std::ffi::CString;
         let c_name = CString::new(name).unwrap();
 
@@ -38,7 +38,7 @@ impl SeccompWrapper {
     }
 
     /// Add a rule to the seccomp context.
-    pub fn add_rule(&mut self, action: Action, syscall: Syscall) -> Result<(), SeccompError> {
+    pub(crate) fn add_rule(&self, action: Action, syscall: Syscall) -> Result<(), SeccompError> {
         let context = self.context.as_ptr();
         // let syscall = Self::resolve_syscall(syscall)?;
         let syscall = syscall as i32;
@@ -55,7 +55,7 @@ impl SeccompWrapper {
     }
 
     /// Load the context and enforce the rules.
-    pub fn load(&mut self) -> Result<(), SeccompError> {
+    pub(crate) fn load(&self) -> Result<(), SeccompError> {
         let context_ptr = self.context.as_ptr();
 
         // SAFETY: `context_ptr` is a valid context initialized with `seccomp_init`.
@@ -67,15 +67,20 @@ impl SeccompWrapper {
     }
 }
 
+/// Action that can be applied to a context or a syscall
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Action {
+    /// allowing all in the context or allowing a syscall
     Allow = SCMP_ACT_ALLOW,
+    /// kill all in the context or kill a syscall
     Kill = SCMP_ACT_KILL_PROCESS,
+    /// custom sig
     Errno(u16),
 }
 
 impl Action {
+    /// from action to libseccomp const
     pub const fn to_raw(self) -> u32 {
         match self {
             Self::Allow => SCMP_ACT_ALLOW,

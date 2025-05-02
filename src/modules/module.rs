@@ -1,8 +1,14 @@
+/// unimplemented
 pub enum Modules {
+    /// unimplemented
     Basic,
+
+    /// unimplemented
     Restrictive,
 }
-impl Modules {
-    pub fn use_module(self: Modules) {}
-}
 
+/// unimplemented
+impl Modules {
+    /// unimplemented
+    pub const fn use_module(self: Self) {}
+}

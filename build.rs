@@ -3,7 +3,7 @@ use regex::Regex;
 use std::env;
 use std::fs::{read_to_string, File};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // Todo(x0rw): This needs more work
 fn main() {
@@ -41,7 +41,7 @@ fn main() {
     let syscalls = extract_syscalls(&content);
 
     let mut out = File::create("src/syscall.rs").expect("Could not create src/syscall.rs");
-    out.write_all(generate_linux_syscall_enum(&syscalls).as_bytes())
+    out.write_all(generate_linux_syscall_enum(&syscalls, header_path).as_bytes())
         .expect("Failed to write generated syscalls");
 }
 
@@ -71,8 +71,14 @@ fn to_camel_case(input: &str) -> String {
 }
 
 /// generate syscall enum
-fn generate_linux_syscall_enum(syscalls: &[(String, u32)]) -> String {
+fn generate_linux_syscall_enum(syscalls: &[(String, u32)], path: PathBuf) -> String {
     let mut code = String::new();
+
+    code.push_str(&format!(
+        "/// System call list generated from `{:}`",
+        path.to_str()
+            .unwrap_or("Err! Couldn't find or parse the syscall header")
+    ));
     code.push_str(
         r#"
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -86,7 +92,7 @@ pub enum Syscall {
             let first = chars.next().unwrap().to_uppercase().to_string();
             first + chars.as_str()
         };
-        code.push_str(&format!("    /// {}() \n", variant.to_lowercase()));
+        code.push_str(&format!("    /// `{}()` \n", variant.to_lowercase()));
         code.push_str(&format!("    {} = {},\n", to_camel_case(&variant), num));
     }
 

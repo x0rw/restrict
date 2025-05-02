@@ -1,8 +1,5 @@
-use crate::{
-    error::SeccompError,
-    syscall::Syscall,
-    wrapper::{Action, SeccompWrapper},
-};
+use crate::wrapper::SeccompWrapper;
+pub use crate::{error::SeccompError, syscall::Syscall, wrapper::Action};
 
 /// Seccomp filters of syscall and actions
 #[derive(Debug)]
@@ -28,6 +25,7 @@ impl SeccompFilter {
 }
 
 #[derive(Debug)]
+/// Policy manager struct to keep track of all the Libseccomp filters
 pub struct Policy {
     rules: Vec<SeccompFilter>,
     context: Option<SeccompWrapper>,
@@ -110,7 +108,7 @@ impl Policy {
         rules
             .iter()
             .filter(|x| x.action == Action::Allow)
-            .map(|filter| filter.get_syscall())
+            .map(SeccompFilter::get_syscall)
             .collect()
     }
 
