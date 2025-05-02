@@ -92,7 +92,6 @@ impl Policy {
         }
 
         context.load()?; // Finalize and load the seccomp filters.
-        println!("Filters applied");
 
         Ok(())
     }

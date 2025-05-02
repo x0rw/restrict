@@ -1,6 +1,6 @@
 [package]
 name = "restrict" 
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021" 
 description = "A DX-focused crate that lets you allow or deny Linux syscalls using an ergonomic, auto-generated enum tailored to your system architecture."
 license = "MIT"
@@ -21,6 +21,9 @@ name = "restrict"
 
 [build-dependencies]
 regex = "1.11.1"
+
+[package.metadata.docs.rs]
+documentation = true
 
 [[bin]]
 name = "create_file_test"
