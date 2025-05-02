@@ -97,3 +97,9 @@ To override the header location:
 ```sh
 SYSCALL_INCLUDE_DIR=/path/to/other/asm cargo build
 ```
+
+## License
+
+This project is licensed under the terms of the [MIT license](LICENSE).
+
+See the [LICENSE](LICENSE) file for more details.
