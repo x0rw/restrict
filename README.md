@@ -15,6 +15,16 @@
 - 🔍 **Runtime inspection**: list allowed or killed syscalls  
 
 ---
+## Prerequisites
+
+You need `libseccomp-dev` installed in your Linux
+
+```bash
+sudo apt-get update && sudo apt-get install -y libseccomp-dev
+```
+
+
+
 
 ## 🚀 Quickstart
 
