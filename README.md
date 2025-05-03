@@ -1,5 +1,11 @@
 # restrict
 
+[![Crates.io](https://img.shields.io/crates/v/restrict.svg)](https://crates.io/crates/restrict)
+[![Docs.rs](https://docs.rs/restrict/badge.svg)](https://docs.rs/restrict)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/x0rw/restrict/actions/workflows/rust.yml/badge.svg)](https://github.com/x0rw/restrict/actions/workflows/rust.yml)
+
+
 **Ergonomic and DX-first Linux syscall filtering crate**
 
 `restrict` offers a clean, expressive API to allow or deny syscalls on Linux. It generates a system-aware `Syscall` enum at build time and exposes a safe policy manager to configure syscall rules for your application.
