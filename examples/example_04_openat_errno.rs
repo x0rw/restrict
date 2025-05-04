@@ -1,0 +1,26 @@
+use std::fs;
+
+use restrict::{syscall::Syscall, *};
+
+use policy::Policy;
+fn main() -> Result<(), SeccompError> {
+    let mut filter = Policy::deny_all()?;
+
+    filter
+        // Openat syscall should fail with errno 44
+        .fail_with(Syscall::Openat, 44)?
+        // other syscalls are used to output or by cargo
+        .allow(Syscall::Read)?
+        .allow(Syscall::Write)?
+        .allow(Syscall::Futex)?
+        .allow(Syscall::Sigaltstack)?
+        .allow(Syscall::Munmap)?
+        .allow(Syscall::ExitGroup)?;
+
+    filter.apply()?;
+
+    // openat() syscall
+    let _read_fs = fs::read("test.txt").unwrap();
+    println!("This read will fail with errno 44 `Channel number is out of range`");
+    Ok(())
+}

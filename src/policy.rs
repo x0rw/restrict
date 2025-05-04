@@ -37,7 +37,7 @@ impl Policy {
     /// use modules
     // pub fn use_module(module: Modules) {}
     /// Create a new policy with the given default action.
-    pub fn new(default_action: Action) -> Result<Self, SeccompError> {
+    fn new(default_action: Action) -> Result<Self, SeccompError> {
         let context = SeccompWrapper::init_context(default_action)?;
         Ok(Self {
             rules: Vec::new(),
@@ -53,6 +53,20 @@ impl Policy {
     /// Deny all syscalls by default.
     pub fn deny_all() -> Result<Self, SeccompError> {
         Self::new(Action::Kill)
+    }
+
+    /// Syscall fail with a custom error no
+    pub fn fail_with(&mut self, syscall: Syscall, errno: u16) -> Result<&mut Self, SeccompError> {
+        if let Some(ref wrapper) = self.context {
+            if wrapper.default_action == Action::Errno(errno) {
+                return Err(SeccompError::RedundantAllowRule(syscall));
+            }
+            self.rules
+                .push(SeccompFilter::new(syscall, Action::Errno(errno)));
+            Ok(self)
+        } else {
+            Err(SeccompError::EmptyContext)
+        }
     }
 
     /// Mark a syscall as allowed.
@@ -83,7 +97,6 @@ impl Policy {
 
     /// Apply all collected rules to the seccomp context.
     pub fn apply(&mut self) -> Result<(), SeccompError> {
-        println!("Applying filters");
         let context_option = self.context.as_mut();
         let context = context_option.ok_or(SeccompError::EmptyContext)?;
 
