@@ -9,3 +9,8 @@
 - Dockerfile
 - CI/CD improvements
 - Update README.md
+
+## [0.1.3] - 2025-05-06
+### Added 
+- Add fail_with(Syscall, errno) to fail with specific errno instead of killing the process
+

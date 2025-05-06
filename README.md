@@ -52,23 +52,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+Or fail the syscall with a specific error number:
+```rust
+    let mut policy = Policy::allow_all()?;
+    policy
+        .fail_with(Syscall::Execve, 5)?   // this syscall will return errno 5
+        .fail_with(Syscall::Ptrace, 5)? 
+        .apply()?;             
+```
 
 Or, for a stricter base policy:
 
 ```rust
-use restrict::{Policy, Syscall};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-
     let mut policy = Policy::deny_all()?;  
     policy
         .allow(Syscall::Read)?
         .allow(Syscall::Write)?
         .apply()?;  
-
-    // only allow read and write
-    Ok(())
-}
 ```
 
 ## 🛠️ API Overview
@@ -79,13 +79,17 @@ Starts with all syscalls allowed; then call `.deny(...)` for any you want to blo
 - `Policy::deny_all()`
 Starts with all syscalls denied; then call `.allow(...)` for any you need.
 
-- `policy.allow(syscall: Syscall)` → `&mut Self`
-Mark a syscall as allowed.
+- `policy.allow(syscall: Syscall)` 
+Will allow this syscall
 
-- `policy.deny(syscall: Syscall)` → `&mut Self`
-Mark a syscall as killed.
+- `policy.fail_with(syscall: Syscall, errno: u16)` 
+Will fail this syscall
 
-- `policy.apply()` → `()`
+
+- `policy.deny(syscall: Syscall)` 
+Will kill this syscall
+
+- `policy.apply()` 
 Finalize and load all collected filters into the kernel.
 
 - `policy.list_allowed_syscalls()` -> `Vec<Syscall>`
