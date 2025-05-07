@@ -67,4 +67,8 @@ pub enum SeccompError {
     /// Io error
     #[error("IO error occured: {0:?}")]
     IO(#[from] io::Error),
+
+    /// Unsupported syscall
+    #[error("Unsupported syscall id {0}")]
+    UnsupportedSyscallID(i32),
 }

@@ -75,6 +75,7 @@ fn to_camel_case(input: &str) -> String {
 }
 
 /// generate syscall enum
+/// Please respect proper coding styles and documentation even in generated code
 fn generate_linux_syscall_enum(syscalls: &[(String, u32)], path: PathBuf) -> String {
     let mut code = String::new();
 
@@ -85,6 +86,38 @@ fn generate_linux_syscall_enum(syscalls: &[(String, u32)], path: PathBuf) -> Str
     ));
     code.push_str(
         r#"
+
+use crate::error::SeccompError;
+
+impl TryFrom<i32> for Syscall {
+    type Error = SeccompError;
+
+    fn try_from(num: i32) -> Result<Self, Self::Error> {
+        match num {
+"#,
+    );
+
+    for (name, _num) in syscalls {
+        let variant = {
+            let mut chars = name.chars();
+            let first = chars.next().unwrap().to_uppercase().to_string();
+            first + chars.as_str()
+        };
+        code.push_str(&format!(
+            "           x if x == Syscall::{} as i32 => Ok(Syscall::{0}),\n",
+            to_camel_case(&variant),
+        ));
+    }
+
+    code.push_str(
+        r#"
+            other => Err(SeccompError::UnsupportedSyscallID(other)),
+        }
+    }
+}
+
+/// Generated syscalls enum
+///
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Syscall {
 "#,

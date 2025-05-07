@@ -167,7 +167,7 @@ impl PtraceWrapper {
     /// he
     pub fn wait_for_syscall<F>(&self, mut on_syscall: F)
     where
-        F: FnMut(u64) -> TraceAction,
+        F: FnMut(Syscall) -> TraceAction,
     {
         let child = self.get_process().get_pid();
         let wrapper = PtraceWrapper::new(child);
@@ -191,13 +191,12 @@ impl PtraceWrapper {
                     let regs = wrapper.get_registers().unwrap();
 
                     // handler fynction
-                    match on_syscall(regs.orig_rax) {
+                    let resolve_syscall_enum = Syscall::try_from(regs.orig_rax as i32).unwrap();
+                    match on_syscall(resolve_syscall_enum) {
                         TraceAction::Continue => wrapper.continue_execution().unwrap(),
                         TraceAction::Block => wrapper.continue_execution().unwrap(),
                         TraceAction::Interrupt => wrapper.continue_execution().unwrap(),
                     }
-
-                    wrapper.continue_execution().unwrap();
                 } else {
                     wrapper.syscall_trace().unwrap();
                 }

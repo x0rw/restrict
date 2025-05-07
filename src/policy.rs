@@ -4,16 +4,33 @@ use crate::wrapper::{self, ForkResult, PtraceWrapper, SeccompWrapper, TraceActio
 pub use crate::{error::SeccompError, syscall::Syscall, wrapper::Action};
 
 /// Seccomp filters of syscall and actions
-#[derive(Debug)]
+#[derive()]
 pub struct SeccompFilter {
     syscall: Syscall,
     action: Action,
+    /// Tracer callback
+    pub tracer: Option<Box<dyn Fn(Syscall) -> TraceAction>>,
 }
 
 impl SeccompFilter {
     /// Declare a new filter
     const fn new(syscall: Syscall, action: Action) -> Self {
-        Self { syscall, action }
+        Self {
+            syscall,
+            action,
+            tracer: None,
+        }
+    }
+
+    fn new_tracer<T>(syscall: Syscall, default_action: Action, handler: T) -> Self
+    where
+        T: Fn(Syscall) -> TraceAction + 'static,
+    {
+        Self {
+            syscall: syscall,
+            action: default_action,
+            tracer: Some(Box::new(handler)),
+        }
     }
     /// get this filter's target syscall
     fn get_syscall(&self) -> Syscall {
@@ -26,7 +43,7 @@ impl SeccompFilter {
     }
 }
 
-#[derive(Debug)]
+#[derive()]
 /// Policy manager struct to keep track of all the Libseccomp filters
 pub struct Policy {
     rules: Vec<SeccompFilter>,
@@ -39,7 +56,7 @@ impl Policy {
     /// use modules
     // pub fn use_module(module: Modules) {}
     /// Create a new policy with the given default action.
-    pub fn new(default_action: Action) -> Result<Self, SeccompError> {
+    fn new(default_action: Action) -> Result<Self, SeccompError> {
         let context = SeccompWrapper::init_context(default_action)?;
         Ok(Self {
             rules: Vec::new(),
@@ -71,8 +88,12 @@ impl Policy {
         }
     }
     /// Trace
-    pub fn trace(&mut self, syscall: Syscall) -> Result<&mut Self, SeccompError> {
-        self.rules.push(SeccompFilter::new(syscall, Action::Trace));
+    pub fn trace<T>(&mut self, syscall: Syscall, tracer: T) -> Result<&mut Self, SeccompError>
+    where
+        T: Fn(Syscall) -> TraceAction + 'static,
+    {
+        self.rules
+            .push(SeccompFilter::new_tracer(syscall, Action::Trace, tracer));
         Ok(self)
     }
 
@@ -109,19 +130,15 @@ impl Policy {
 
         for rule in &self.rules {
             if rule.action == Action::Trace {
-                let handler = |syscall| {
-                    println!("syscall: {syscall}");
-                    return TraceAction::Continue;
-                };
                 let result = PtraceWrapper::fork().unwrap();
                 match result.get_process() {
                     ForkResult::Child => {
                         // child process
                         wrapper::PtraceWrapper::new(0).enable_tracing().unwrap();
 
-                        unsafe { raise(SIGSTOP) };
-
                         context.add_rule(rule.get_action(), rule.get_syscall())?;
+                        context.load().unwrap();
+                        unsafe { raise(SIGSTOP) };
 
                         return Ok(());
                     }
@@ -130,7 +147,8 @@ impl Policy {
                         result.wait_for_signal(SIGSTOP).unwrap();
 
                         result.set_traceseccomp().unwrap().syscall_trace().unwrap();
-                        result.wait_for_syscall(handler);
+                        let tracer = rule.tracer.as_ref().unwrap();
+                        result.wait_for_syscall(tracer);
 
                         std::process::exit(0);
                     }
