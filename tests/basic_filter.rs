@@ -22,11 +22,10 @@ mod tests {
         let mut policy = Policy::allow_all().unwrap();
         let result = policy.allow(Syscall::Read);
 
-        assert_eq!(
-            result.unwrap_err(),
-            SeccompError::RedundantAllowRule(Syscall::Read),
-            "Policy should not have conflicting default rules"
-        );
+        match result {
+            Err(SeccompError::RedundantAllowRule(Syscall::Read)) => {}
+            _ => panic!("Expected RedundantAllowRule for Syscall::Read"),
+        }
     }
 
     #[test]
@@ -34,13 +33,11 @@ mod tests {
         let mut policy = Policy::deny_all().unwrap();
         let result = policy.deny(Syscall::Read);
 
-        assert_eq!(
-            result.unwrap_err(),
-            SeccompError::RedundantDenyRule(Syscall::Read),
-            "Policy should not have conflicting default rules"
-        );
+        match result {
+            Err(SeccompError::RedundantDenyRule(Syscall::Read)) => {}
+            _ => panic!("Expected RedundantDenyRule for Syscall::Read"),
+        }
     }
-
     #[test]
     fn test_policy_rules() {
         let mut policy = Policy::deny_all().unwrap();

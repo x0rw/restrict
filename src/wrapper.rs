@@ -150,6 +150,20 @@ impl PtraceWrapper {
         }
     }
 
+    ///default
+    ///
+    pub fn wait_for_signal(&self, expected: i32) -> Result<(), io::Error> {
+        let mut status = 0;
+        let ret = unsafe { libc::waitpid(self.get_process().get_pid(), &mut status, 0) };
+        if ret == -1 {
+            return Err(io::Error::last_os_error());
+        }
+        if !WIFSTOPPED(status) || WSTOPSIG(status) != expected {
+            return Err(io::Error::new(io::ErrorKind::Other, "Unexpected signal"));
+        }
+        Ok(())
+    }
+
     /// he
     pub fn wait_for_syscall<F>(&self, mut on_syscall: F)
     where

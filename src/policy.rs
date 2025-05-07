@@ -1,4 +1,6 @@
-use crate::wrapper::SeccompWrapper;
+use libc::{raise, SIGSTOP};
+
+use crate::wrapper::{self, ForkResult, PtraceWrapper, SeccompWrapper, TraceAction};
 pub use crate::{error::SeccompError, syscall::Syscall, wrapper::Action};
 
 /// Seccomp filters of syscall and actions
@@ -106,7 +108,36 @@ impl Policy {
         let context = context_option.ok_or(SeccompError::EmptyContext)?;
 
         for rule in &self.rules {
-            context.add_rule(rule.get_action(), rule.get_syscall())?;
+            if rule.action == Action::Trace {
+                let handler = |syscall| {
+                    println!("syscall: {syscall}");
+                    return TraceAction::Continue;
+                };
+                let result = PtraceWrapper::fork().unwrap();
+                match result.get_process() {
+                    ForkResult::Child => {
+                        // child process
+                        wrapper::PtraceWrapper::new(0).enable_tracing().unwrap();
+
+                        unsafe { raise(SIGSTOP) };
+
+                        context.add_rule(rule.get_action(), rule.get_syscall())?;
+
+                        return Ok(());
+                    }
+                    ForkResult::Parent(pid) => {
+                        println!("pid: {pid}");
+                        result.wait_for_signal(SIGSTOP).unwrap();
+
+                        result.set_traceseccomp().unwrap().syscall_trace().unwrap();
+                        result.wait_for_syscall(handler);
+
+                        std::process::exit(0);
+                    }
+                }
+            } else {
+                context.add_rule(rule.get_action(), rule.get_syscall())?;
+            }
         }
 
         context.load()?; // Finalize and load the seccomp filters.

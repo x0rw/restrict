@@ -21,10 +21,6 @@ fn wait_for_signal(pid: pid_t, expected: i32) -> Result<(), io::Error> {
 }
 
 fn do_f() {
-    let handler = |syscall| {
-        println!("syscall: {syscall}");
-        return TraceAction::Continue;
-    };
     let result = PtraceWrapper::fork().unwrap();
     match result.get_process() {
         ForkResult::Child => {
@@ -45,7 +41,7 @@ fn do_f() {
             wait_for_signal(pid, SIGSTOP).unwrap();
 
             result.set_traceseccomp().unwrap().syscall_trace().unwrap();
-            result.wait_for_syscall(handler);
+            // wait_for_syscall(pid);
 
             std::process::exit(0);
         }
@@ -53,7 +49,8 @@ fn do_f() {
 }
 
 fn main() {
-    do_f();
+    let mut pol = Policy::allow_all().unwrap();
+    pol.trace(Syscall::Openat).unwrap().apply().unwrap();
 
     let mut file = File::create("test-seccomp.txt").expect("Failed to open file");
     use std::io::Write;
