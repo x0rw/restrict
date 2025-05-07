@@ -1,4 +1,9 @@
-use std::{ffi::c_void, ptr::NonNull};
+use std::{
+    ffi::c_void,
+    io::{self},
+    mem::MaybeUninit,
+    ptr::NonNull,
+};
 
 use libseccomp_sys::*;
 
@@ -77,6 +82,8 @@ pub enum Action {
     Kill = SCMP_ACT_KILL_PROCESS,
     /// custom sig
     Errno(u16),
+    /// set tracing
+    Trace = SCMP_ACT_TRACE(0),
 }
 
 impl Action {
@@ -86,8 +93,197 @@ impl Action {
             Self::Allow => SCMP_ACT_ALLOW,
             Self::Kill => SCMP_ACT_KILL_PROCESS,
             Self::Errno(code) => SCMP_ACT_ERRNO(code),
+            Self::Trace => SCMP_ACT_TRACE(0),
         }
     }
+}
+
+use libc::{
+    pid_t, ptrace, waitpid, PTRACE_CONT, PTRACE_GETREGS, PTRACE_O_TRACESECCOMP, PTRACE_SETOPTIONS,
+    PTRACE_SYSCALL, PTRACE_TRACEME, WIFEXITED, WIFSIGNALED, WIFSTOPPED, WSTOPSIG,
+};
+/// Fork
+pub enum ForkResult {
+    /// parent
+    Parent(pid_t),
+    /// Child process always with the pid -
+    Child,
+}
+impl ForkResult {
+    /// get pid
+    pub fn get_pid(&self) -> pid_t {
+        match self {
+            ForkResult::Parent(pid) => pid.to_owned(),
+            ForkResult::Child => 0,
+        }
+    }
+}
+/// Ptrace wrapper
+pub struct PtraceWrapper {
+    process: ForkResult,
+}
+impl PtraceWrapper {
+    /// get process
+    pub fn get_process(&self) -> &ForkResult {
+        &self.process
+    }
+    /// fork
+    pub fn fork() -> Result<Self, SeccompError> {
+        let pid = unsafe { libc::fork() };
+        if pid < 0 {
+            return Err(SeccompError::Fork);
+        }
+
+        if pid == 0 {
+            return Ok(Self {
+                process: ForkResult::Child,
+            });
+        }
+        Ok(Self {
+            process: ForkResult::Parent(pid),
+        })
+    }
+    /// new
+    pub fn new(child_pid: pid_t) -> Self {
+        Self {
+            process: ForkResult::Parent(child_pid),
+        }
+    }
+
+    /// he
+    pub fn wait_for_syscall<F>(&self, mut on_syscall: F)
+    where
+        F: FnMut(u64) -> TraceAction,
+    {
+        let child = self.get_process().get_pid();
+        let wrapper = PtraceWrapper::new(child);
+        loop {
+            let mut status = 0;
+            let ret = unsafe { waitpid(child, &mut status, 0) };
+            if ret == -1 {
+                let err = io::Error::last_os_error();
+                if err.raw_os_error() == Some(libc::ECHILD) {
+                    break;
+                }
+                panic!("waitpid failed: {}", err);
+            }
+            if WIFEXITED(status) || WIFSIGNALED(status) {
+                break;
+            }
+
+            if WIFSTOPPED(status) {
+                let sig = WSTOPSIG(status);
+                if sig == libc::SIGTRAP && (status >> 16) == libc::PTRACE_EVENT_SECCOMP {
+                    let regs = wrapper.get_registers().unwrap();
+
+                    // handler fynction
+                    match on_syscall(regs.orig_rax) {
+                        TraceAction::Continue => wrapper.continue_execution().unwrap(),
+                        TraceAction::Block => wrapper.continue_execution().unwrap(),
+                        TraceAction::Interrupt => wrapper.continue_execution().unwrap(),
+                    }
+
+                    wrapper.continue_execution().unwrap();
+                } else {
+                    wrapper.syscall_trace().unwrap();
+                }
+            }
+        }
+    }
+    /// Set `PTRACE_O_TRACESECCOMP` option
+    /// to
+    pub fn set_traceseccomp(&self) -> Result<&Self, SeccompError> {
+        let ret = unsafe {
+            ptrace(
+                PTRACE_SETOPTIONS,
+                self.process.get_pid(),
+                std::ptr::null_mut::<c_void>(),
+                PTRACE_O_TRACESECCOMP as *mut c_void,
+            )
+        };
+        if ret == -1 {
+            return Err(SeccompError::PtraceOptionsSet(
+                self.process.get_pid(),
+                std::io::Error::last_os_error(),
+            ));
+        }
+        Ok(self)
+    }
+
+    /// enable ptrace tracing for the child process
+    pub fn enable_tracing(&self) -> Result<&Self, SeccompError> {
+        let ret = unsafe {
+            ptrace(
+                PTRACE_TRACEME,
+                self.process.get_pid(),
+                std::ptr::null_mut::<c_void>(),
+                0 as *mut c_void,
+            )
+        };
+        if ret == -1 {
+            return Err(SeccompError::PtraceSyscall(
+                self.process.get_pid(),
+                std::io::Error::last_os_error(),
+            ));
+        }
+        Ok(self)
+    }
+
+    /// tete
+    pub fn get_registers(&self) -> Result<libc::user_regs_struct, SeccompError> {
+        let mut regs = MaybeUninit::<libc::user_regs_struct>::uninit();
+
+        let ret = unsafe {
+            ptrace(
+                PTRACE_GETREGS,
+                self.get_process().get_pid(),
+                std::ptr::null_mut::<c_void>(),
+                regs.as_mut_ptr() as *mut c_void,
+            )
+        };
+
+        if ret == -1 {
+            return Err(io::Error::last_os_error().into());
+        }
+
+        let regs = unsafe { regs.assume_init() };
+        Ok(regs)
+    }
+
+    /// cont
+    pub fn continue_execution(&self) -> Result<(), SeccompError> {
+        unsafe {
+            ptrace(
+                PTRACE_CONT,
+                self.process.get_pid(),
+                std::ptr::null_mut::<c_void>(),
+                0 as *mut c_void,
+            );
+        }
+        Ok(())
+    }
+
+    /// syscall tracing
+    pub fn syscall_trace(&self) -> Result<(), SeccompError> {
+        unsafe {
+            ptrace(
+                PTRACE_SYSCALL,
+                self.process.get_pid(),
+                std::ptr::null_mut::<c_void>(),
+                0 as *mut c_void,
+            );
+        }
+        Ok(())
+    }
+}
+/// Action taken by the handler function after a syscall is caught
+pub enum TraceAction {
+    /// continue syscall execution
+    Continue,
+    /// interupting
+    Interrupt,
+    /// Block
+    Block,
 }
 
 #[cfg(test)]
@@ -104,10 +300,14 @@ mod tests {
     #[test]
     fn invalid_resolve_syscall() {
         let syscall_name = "InvalidSyscall";
-        let open_syscall = SeccompWrapper::resolve_syscall(syscall_name);
-        assert_eq!(
-            open_syscall.unwrap_err(),
-            SeccompError::UnsupportedSyscall(syscall_name.to_string())
-        );
+        let result = SeccompWrapper::resolve_syscall(syscall_name);
+
+        match result {
+            Err(SeccompError::UnsupportedSyscall(name)) => {
+                assert_eq!(name, syscall_name);
+            }
+            Err(e) => panic!("Unexpected error: {:?}", e),
+            Ok(_) => panic!("Expected an error for an invalid syscall, but got Ok"),
+        }
     }
 }

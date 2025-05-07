@@ -36,4 +36,5 @@ pub mod policy;
 /// Strongly tyoed system calls enum
 pub mod syscall;
 
-mod wrapper;
+/// unsafe bindings
+pub mod wrapper;

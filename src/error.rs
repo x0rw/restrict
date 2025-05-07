@@ -1,8 +1,11 @@
+use std::io;
+
+use libc::pid_t;
 use thiserror::Error;
 
 use crate::syscall::Syscall;
 /// Set of errors enums returned from libseccomp wrapper and the public api
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum SeccompError {
     /// triggered when initilizing a libseccomp filter fails (duplicated)
     #[error("Failed to initilize seccomp context")]
@@ -48,4 +51,20 @@ pub enum SeccompError {
     /// triggered when you allow() but the context is allow_all()
     #[error("Redundant allow rule for {0:?} when default is Allow all.")]
     RedundantAllowRule(Syscall),
+
+    /// Triggered when ptrace fails to set ptrace options witg `PTRACE_O_TRACESECCOMP`
+    #[error("Failed to set ptrace options for process child {0:?} ")]
+    PtraceOptionsSet(pid_t, io::Error),
+
+    /// Triggered when ptrace fails to `PTRACE_SYSCALL`
+    #[error("Failed to start tracing syscalls for the child: {0:?} ")]
+    PtraceSyscall(pid_t, io::Error),
+
+    /// Fork returned a negative error
+    #[error("Failed to fork the process")]
+    Fork,
+
+    /// Io error
+    #[error("IO error occured: {0:?}")]
+    IO(#[from] io::Error),
 }

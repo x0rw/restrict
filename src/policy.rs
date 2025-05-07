@@ -37,7 +37,7 @@ impl Policy {
     /// use modules
     // pub fn use_module(module: Modules) {}
     /// Create a new policy with the given default action.
-    fn new(default_action: Action) -> Result<Self, SeccompError> {
+    pub fn new(default_action: Action) -> Result<Self, SeccompError> {
         let context = SeccompWrapper::init_context(default_action)?;
         Ok(Self {
             rules: Vec::new(),
@@ -67,6 +67,11 @@ impl Policy {
         } else {
             Err(SeccompError::EmptyContext)
         }
+    }
+    /// Trace
+    pub fn trace(&mut self, syscall: Syscall) -> Result<&mut Self, SeccompError> {
+        self.rules.push(SeccompFilter::new(syscall, Action::Trace));
+        Ok(self)
     }
 
     /// Mark a syscall as allowed.
