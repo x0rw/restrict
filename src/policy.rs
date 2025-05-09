@@ -13,6 +13,14 @@ pub struct SeccompFilter {
 }
 
 impl SeccompFilter {
+    /// Print the filter
+    pub fn print(&self) {
+        println!(
+            "Syscall: {:?} -- Action: {:?}",
+            self.get_syscall(),
+            self.get_action()
+        );
+    }
     /// Declare a new filter
     const fn new(syscall: Syscall, action: Action) -> Self {
         Self {
@@ -27,7 +35,7 @@ impl SeccompFilter {
         T: Fn(Syscall) -> TraceAction + 'static,
     {
         Self {
-            syscall: syscall,
+            syscall,
             action: default_action,
             tracer: Some(Box::new(handler)),
         }
@@ -124,36 +132,46 @@ impl Policy {
     }
 
     /// Apply all collected rules to the seccomp context.
+    // todo(x0rw): Add a supervisor process that spawns once to handle tracing
+    //
     pub fn apply(&mut self) -> Result<(), SeccompError> {
         let context_option = self.context.as_mut();
         let context = context_option.ok_or(SeccompError::EmptyContext)?;
 
         for rule in &self.rules {
             if rule.action == Action::Trace {
-                let result = PtraceWrapper::fork().unwrap();
+                // println!("Applying Trace filter");
+                let result = PtraceWrapper::fork()?;
                 match result.get_process() {
                     ForkResult::Child => {
                         // child process
-                        wrapper::PtraceWrapper::new(0).enable_tracing().unwrap();
+                        wrapper::PtraceWrapper::new(0).enable_tracing()?;
 
-                        context.add_rule(rule.get_action(), rule.get_syscall())?;
-                        context.load().unwrap();
+                        let temp_context = SeccompWrapper::init_context(Action::Allow)?;
+                        temp_context.add_rule(rule.get_action(), rule.get_syscall())?;
+                        temp_context.load()?;
+                        // context.load().unwrap();
                         unsafe { raise(SIGSTOP) };
 
-                        return Ok(());
+                        // return Ok(());
                     }
-                    ForkResult::Parent(pid) => {
-                        println!("pid: {pid}");
-                        result.wait_for_signal(SIGSTOP).unwrap();
+                    ForkResult::Parent(_pid) => {
+                        // println!("pid: {_pid}");
+                        result.wait_for_signal(SIGSTOP)?;
 
-                        result.set_traceseccomp().unwrap().syscall_trace().unwrap();
+                        result.set_traceseccomp()?.syscall_trace()?;
                         let tracer = rule.tracer.as_ref().unwrap();
-                        result.wait_for_syscall(tracer);
+                        result.wait_for_syscall(tracer)?;
 
                         std::process::exit(0);
                     }
                 }
             } else {
+                // println!(
+                //     "Applying {:?} filter for {:?}",
+                //     rule.get_action(),
+                //     rule.get_syscall()
+                // );
                 context.add_rule(rule.get_action(), rule.get_syscall())?;
             }
         }
@@ -169,13 +187,9 @@ impl Policy {
     }
 
     /// List allowed syscalls
-    pub fn list_allowed_syscalls(&self) -> Vec<Syscall> {
+    pub fn list_policies(&self) {
         let rules = &self.rules;
-        rules
-            .iter()
-            .filter(|x| x.action == Action::Allow)
-            .map(SeccompFilter::get_syscall)
-            .collect()
+        rules.iter().for_each(|rule: &SeccompFilter| rule.print())
     }
 
     /// List allowed syscalls

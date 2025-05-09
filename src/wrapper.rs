@@ -160,6 +160,12 @@ impl PtraceWrapper {
         if ret == -1 {
             return Err(io::Error::last_os_error());
         }
+
+        // println!(
+        //     "waitpid returned status: {}, expected: {}",
+        //     WSTOPSIG(status),
+        //     expected
+        // );
         if !WIFSTOPPED(status) || WSTOPSIG(status) != expected {
             return Err(io::Error::new(io::ErrorKind::Other, "Unexpected signal"));
         }
@@ -167,7 +173,7 @@ impl PtraceWrapper {
     }
 
     /// he
-    pub fn wait_for_syscall<F>(&self, mut on_syscall: F)
+    pub fn wait_for_syscall<F>(&self, mut on_syscall: F) -> Result<(), SeccompError>
     where
         F: FnMut(Syscall) -> TraceAction,
     {
@@ -182,6 +188,7 @@ impl PtraceWrapper {
                     break;
                 }
                 panic!("waitpid failed: {}", err);
+                // return Err(SeccompError::Unknown);
             }
             if WIFEXITED(status) || WIFSIGNALED(status) {
                 break;
@@ -190,19 +197,20 @@ impl PtraceWrapper {
             if WIFSTOPPED(status) {
                 let sig = WSTOPSIG(status);
                 if sig == libc::SIGTRAP && (status >> 16) == libc::PTRACE_EVENT_SECCOMP {
-                    let regs = wrapper.get_registers().unwrap();
+                    let regs = wrapper.get_registers()?;
 
                     // handler fynction
-                    let resolve_syscall_enum = Syscall::try_from(regs.orig_rax as i32).unwrap();
+                    let resolve_syscall_enum = Syscall::try_from(regs.orig_rax as i32)?;
                     match on_syscall(resolve_syscall_enum) {
-                        TraceAction::Continue => wrapper.continue_execution().unwrap(),
-                        TraceAction::Kill => wrapper.kill_execution().unwrap(),
+                        TraceAction::Continue => wrapper.continue_execution()?,
+                        TraceAction::Kill => wrapper.kill_execution()?,
                     }
                 } else {
-                    wrapper.syscall_trace().unwrap();
+                    wrapper.syscall_trace()?;
                 }
             }
         }
+        Ok(())
     }
     /// Set `PTRACE_O_TRACESECCOMP` option
     /// to
@@ -280,14 +288,16 @@ impl PtraceWrapper {
     /// killing after ptrace traps the syscall
     // TODO(x0rw): instead of killing facilitate setting orig_rax to -1 (-EPREM)
     pub fn kill_execution(&self) -> Result<(), SeccompError> {
-        unsafe {
+        let ret = unsafe {
             ptrace(
                 PTRACE_KILL,
                 self.process.get_pid(),
                 std::ptr::null_mut::<c_void>(),
                 0 as *mut c_void,
-            );
-        }
+            )
+        };
+        println!("ptrace output :{}", ret);
+
         Ok(())
     }
     /// syscall tracing
