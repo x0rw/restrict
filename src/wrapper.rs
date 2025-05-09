@@ -99,8 +99,9 @@ impl Action {
 }
 
 use libc::{
-    pid_t, ptrace, waitpid, PTRACE_CONT, PTRACE_GETREGS, PTRACE_O_TRACESECCOMP, PTRACE_SETOPTIONS,
-    PTRACE_SYSCALL, PTRACE_TRACEME, WIFEXITED, WIFSIGNALED, WIFSTOPPED, WSTOPSIG,
+    pid_t, ptrace, waitpid, PTRACE_CONT, PTRACE_GETREGS, PTRACE_KILL, PTRACE_O_TRACESECCOMP,
+    PTRACE_SETOPTIONS, PTRACE_SYSCALL, PTRACE_TRACEME, WIFEXITED, WIFSIGNALED, WIFSTOPPED,
+    WSTOPSIG,
 };
 /// Fork
 pub enum ForkResult {
@@ -118,6 +119,7 @@ impl ForkResult {
         }
     }
 }
+
 /// Ptrace wrapper
 pub struct PtraceWrapper {
     process: ForkResult,
@@ -194,8 +196,7 @@ impl PtraceWrapper {
                     let resolve_syscall_enum = Syscall::try_from(regs.orig_rax as i32).unwrap();
                     match on_syscall(resolve_syscall_enum) {
                         TraceAction::Continue => wrapper.continue_execution().unwrap(),
-                        TraceAction::Block => wrapper.continue_execution().unwrap(),
-                        TraceAction::Interrupt => wrapper.continue_execution().unwrap(),
+                        TraceAction::Kill => wrapper.kill_execution().unwrap(),
                     }
                 } else {
                     wrapper.syscall_trace().unwrap();
@@ -276,6 +277,19 @@ impl PtraceWrapper {
         Ok(())
     }
 
+    /// killing after ptrace traps the syscall
+    // TODO(x0rw): instead of killing facilitate setting orig_rax to -1 (-EPREM)
+    pub fn kill_execution(&self) -> Result<(), SeccompError> {
+        unsafe {
+            ptrace(
+                PTRACE_KILL,
+                self.process.get_pid(),
+                std::ptr::null_mut::<c_void>(),
+                0 as *mut c_void,
+            );
+        }
+        Ok(())
+    }
     /// syscall tracing
     pub fn syscall_trace(&self) -> Result<(), SeccompError> {
         unsafe {
@@ -293,10 +307,8 @@ impl PtraceWrapper {
 pub enum TraceAction {
     /// continue syscall execution
     Continue,
-    /// interupting
-    Interrupt,
-    /// Block
-    Block,
+    /// kill the target syscall process
+    Kill,
 }
 
 #[cfg(test)]

@@ -11,7 +11,7 @@ fn main() -> Result<(), SeccompError> {
     policy
         .trace(policy::Syscall::Openat, |syscall| {
             println!("Syscall {:?} triggered", syscall);
-            return TraceAction::Continue;
+            return TraceAction::Continue; // we can return TraceAction::Kill to kill the process
         })?
         .apply()?;
     let open_file = fs::File::open("test.txt");

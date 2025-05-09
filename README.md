@@ -71,6 +71,21 @@ Or, for a stricter base policy:
         .apply()?;  
 ```
 
+Or, execute a function when a syscall is invoked:
+`trace<T>(&mut self, syscall: Syscall, handler: T) where T: Fn(Syscall) -> TraceAction,`
+```rust
+    let mut policy = Policy::allow_all()?;
+    policy
+        .trace(Syscall::Openat, |syscall| {
+            println!("Syscall {:?} triggered", syscall);
+            return TraceAction::Continue;
+        })?
+        .apply()?;
+    let open_file = fs::File::open("test.txt");
+    println!("Opened file {:?}", open_file);
+```
+possible return variants are `TraceAction::Continue` and `TraceAction::Kill`
+
 ## 🛠️ API Overview
 
 - `Policy::allow_all()`
@@ -79,11 +94,14 @@ Starts with all syscalls allowed; then call `.deny(...)` for any you want to blo
 - `Policy::deny_all()`
 Starts with all syscalls denied; then call `.allow(...)` for any you need.
 
-- `policy.allow(syscall: Syscall)` 
+- `policy.allow(syscall: Syscall)`
 Will allow this syscall
 
-- `policy.fail_with(syscall: Syscall, errno: u16)` 
+- `policy.fail_with(syscall: Syscall, errno: u16)`
 Will fail this syscall
+
+- `policy.trace(syscall: Syscall, handler: Fn(Syscall) -> TraceAction)`
+Hook a handler before the running the target syscall
 
 
 - `policy.deny(syscall: Syscall)` 
