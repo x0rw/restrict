@@ -1,6 +1,6 @@
 [package]
 name = "restrict" 
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021" 
 description = "A crate that lets you allow or deny Linux syscalls using an ergonomic, auto-generated enum tailored to your linux system architecture."
 license = "MIT"

@@ -14,11 +14,11 @@
 
 ## ✨ Features
 
-- 🚀 **Auto-generated** `Syscall` enum tailored to your host architecture  
-- 📝 **Ergonomic API**: `policy.allow(Syscall::Write)?;`  
-- 🔒 **Safe wrapper**: no `unsafe` blocks or raw pointers  
-- 🎛️ **Allow-by-default** or **deny-by-default** policy modes  
-- 🔍 **Runtime inspection**: list allowed or killed syscalls  
+- **Auto-generated** `Syscall` enum tailored to your host architecture  
+- **Ergonomic API**: `policy.allow(Syscall::Write)?;`  
+- **Safe wrapper**: Unsafe wrappers are in `wrapper.rs`
+- **Allow-by-default** or **deny-by-default** policy modes  
+- **Hook functions** Hook a function to control a syscall
 
 ---
 ## Prerequisites

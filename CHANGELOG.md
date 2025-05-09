@@ -14,3 +14,8 @@
 ### Added 
 - Add fail_with(Syscall, errno) to fail with specific errno instead of killing the process
 
+## [0.1.4] - 2025-05-09
+### Added 
+- Add Syscall tracing trace(Syscall, Fn(Syscall) -> TraceAction ) with custom hook function
+- Example tracing usage
+- Low level Ptrace wrapper
