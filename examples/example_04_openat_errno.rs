@@ -8,7 +8,7 @@ fn main() -> Result<(), SeccompError> {
 
     filter
         // Openat syscall should fail with errno 44
-        .fail_with(Syscall::Openat, 44)?;
+        .fail_with(Syscall::Openat, 44);
     filter.apply()?;
 
     // openat() syscall

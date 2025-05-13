@@ -7,9 +7,7 @@ use restrict::syscall::Syscall;
 
 fn main() {
     let mut policy = Policy::allow_all().expect("Failed to create policy");
-    policy
-        .deny(Syscall::Write)
-        .expect("Failed to deny write syscall");
+    policy.deny(Syscall::Write);
     policy.apply().expect("could not apply the policy");
     let file = File::create("test.txt");
     if let Ok(mut file) = file {

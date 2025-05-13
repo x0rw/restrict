@@ -8,7 +8,7 @@ fn main() -> Result<(), SeccompError> {
     println!("This process will be killed at the end!");
 
     let mut filter = Policy::allow_all()?;
-    filter.deny(Syscall::Openat)?;
+    filter.deny(Syscall::Openat);
 
     println!("This should work");
     filter.apply()?;

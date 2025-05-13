@@ -9,8 +9,8 @@ use libseccomp_sys::*;
 
 use crate::{error::SeccompError, syscall::Syscall};
 
+#[allow(dead_code)]
 /// Todo(x0rw): here make emums for libseccomp-sys that interact with it
-#[derive(Debug)]
 pub(crate) struct SeccompWrapper {
     pub context: NonNull<c_void>,
     pub default_action: Action,
@@ -53,7 +53,7 @@ impl SeccompWrapper {
         let seccomp_add_result = unsafe { seccomp_rule_add(context, action, syscall, 0) };
 
         if seccomp_add_result != 0 {
-            return Err(SeccompError::Unknown);
+            return Err(SeccompError::FailedToAddResultToSeccompFilter);
         }
 
         Ok(())
@@ -288,7 +288,7 @@ impl PtraceWrapper {
     /// killing after ptrace traps the syscall
     // TODO(x0rw): instead of killing facilitate setting orig_rax to -1 (-EPREM)
     pub fn kill_execution(&self) -> Result<(), SeccompError> {
-        let ret = unsafe {
+        let _ret = unsafe {
             ptrace(
                 PTRACE_KILL,
                 self.process.get_pid(),
@@ -296,7 +296,7 @@ impl PtraceWrapper {
                 0 as *mut c_void,
             )
         };
-        println!("ptrace output :{}", ret);
+        // println!("ptrace output :{}", ret);
 
         Ok(())
     }

@@ -71,4 +71,8 @@ pub enum SeccompError {
     /// Unsupported syscall
     #[error("Unsupported syscall id {0}")]
     UnsupportedSyscallID(i32),
+
+    /// Unsupported syscall
+    #[error("failed to add rule to a seccomp filter")]
+    FailedToAddResultToSeccompFilter,
 }

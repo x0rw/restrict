@@ -24,17 +24,21 @@ SOFTWARE.
 
 //! Restrict
 //!
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 
 /// Error handling module
 pub mod error;
-pub use error::SeccompError;
 /// Modules for most common rules
 pub mod modules;
 /// Safer, unsafe-free and ergonomic wrapper around wrapper module
 pub mod policy;
 /// Strongly tyoed system calls enum
 pub mod syscall;
+/// Tracer
+pub mod tracer;
 
+/// filters
+pub mod filter;
 /// unsafe bindings
 pub mod wrapper;
+pub use error::SeccompError;
