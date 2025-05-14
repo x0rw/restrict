@@ -5,7 +5,7 @@ use restrict::{policy::Policy, wrapper::TraceAction, *};
 fn main() -> Result<(), SeccompError> {
     println!("This process will be killed at the end!");
 
-    let mut filter = Policy::new(policy::Action::Allow)?;
+    let mut filter = Policy::allow_all()?;
     // filter.allow(Syscall::Write);
     // filter.allow(Syscall::Openat);
     // filter.allow(Syscall::Sigaltstack);
@@ -16,7 +16,7 @@ fn main() -> Result<(), SeccompError> {
         return TraceAction::Continue;
     });
     filter.trace(policy::Syscall::Write, |syscall| {
-        println!("Syscall {:?} triggered", syscall);
+        println!("Syscall {:?} triggered [this is a custom handler]", syscall);
         return TraceAction::Kill;
     });
 

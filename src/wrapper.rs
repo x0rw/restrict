@@ -7,7 +7,7 @@ use std::{
 
 use libseccomp_sys::*;
 
-use crate::{error::SeccompError, syscall::Syscall};
+use crate::{error::SeccompError, filter::tracer::TracerMap, syscall::Syscall};
 
 #[allow(dead_code)]
 /// Todo(x0rw): here make emums for libseccomp-sys that interact with it
@@ -146,39 +146,45 @@ impl PtraceWrapper {
         })
     }
     /// new
-    pub fn new(child_pid: pid_t) -> Self {
+    pub fn with_pid(child_pid: pid_t) -> Self {
         Self {
             process: ForkResult::Parent(child_pid),
         }
     }
 
-    ///default
-    ///
+    /// wait for the child to raise the signal
+    /// this is crucial to sync the child with the parent
+    /// and set the PTRACE_O_TRACESECCOMP flag at the right time
+    /// why do we quit when we the signal doesn't match?
+    /// - in `apply()` function after forking, the child raises SIGSTOP to stop itself
+    /// waiting for the parent to catch this signal
     pub fn wait_for_signal(&self, expected: i32) -> Result<(), io::Error> {
         let mut status = 0;
         let ret = unsafe { libc::waitpid(self.get_process().get_pid(), &mut status, 0) };
         if ret == -1 {
+            eprintln!("waitpid failed");
             return Err(io::Error::last_os_error());
         }
-
-        // println!(
-        //     "waitpid returned status: {}, expected: {}",
-        //     WSTOPSIG(status),
-        //     expected
-        // );
+        // we are looking for a specific signal that the child raised
         if !WIFSTOPPED(status) || WSTOPSIG(status) != expected {
+            // if this is triggered this means either an external(process | thread) signal triggered this
+            // if none of those triggered this fallure check the parent execution flow from forking
+            // to wait_for_signal()
+            eprintln!(
+                " - Unexpected signal: got {}, expected {}. Raw status = {:#x}",
+                WSTOPSIG(status),
+                expected,
+                status
+            );
             return Err(io::Error::new(io::ErrorKind::Other, "Unexpected signal"));
         }
         Ok(())
     }
 
-    /// he
-    pub fn wait_for_syscall<F>(&self, mut on_syscall: F) -> Result<(), SeccompError>
-    where
-        F: FnMut(Syscall) -> TraceAction,
-    {
+    /// event loop
+    pub fn event_loop(&self, trace_map: TracerMap) -> Result<(), SeccompError> {
         let child = self.get_process().get_pid();
-        let wrapper = PtraceWrapper::new(child);
+        let wrapper = PtraceWrapper::with_pid(child);
         loop {
             let mut status = 0;
             let ret = unsafe { waitpid(child, &mut status, 0) };
@@ -200,8 +206,9 @@ impl PtraceWrapper {
                     let regs = wrapper.get_registers()?;
 
                     // handler fynction
-                    let resolve_syscall_enum = Syscall::try_from(regs.orig_rax as i32)?;
-                    match on_syscall(resolve_syscall_enum) {
+                    let caught_syscall = Syscall::try_from(regs.orig_rax as i32)?;
+                    let mapped_fn = trace_map.find_by_syscall(caught_syscall).take().unwrap();
+                    match mapped_fn(caught_syscall) {
                         TraceAction::Continue => wrapper.continue_execution()?,
                         TraceAction::Kill => wrapper.kill_execution()?,
                     }
@@ -214,7 +221,7 @@ impl PtraceWrapper {
     }
     /// Set `PTRACE_O_TRACESECCOMP` option
     /// to
-    pub fn set_traceseccomp(&self) -> Result<&Self, SeccompError> {
+    pub fn set_traceseccomp_option(&self) -> Result<&Self, SeccompError> {
         let ret = unsafe {
             ptrace(
                 PTRACE_SETOPTIONS,

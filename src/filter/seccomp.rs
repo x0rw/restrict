@@ -1,13 +1,13 @@
 use crate::{
     policy::{Action, Syscall},
-    wrapper::{SeccompWrapper, TraceAction},
+    wrapper::SeccompWrapper,
     SeccompError,
 };
 
 use super::RestrictFilter;
 
 /// seccomp fiters duh!
-pub struct SeccompFilter {
+pub(crate) struct SeccompFilter {
     syscall: Syscall,
     action: Action,
 }
@@ -23,8 +23,5 @@ impl RestrictFilter for SeccompFilter {
     }
     fn syscall(&self) -> Syscall {
         self.syscall
-    }
-    fn callback(&self) -> Option<&Box<dyn Fn(Syscall) -> TraceAction>> {
-        None
     }
 }

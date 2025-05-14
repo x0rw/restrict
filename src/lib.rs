@@ -24,7 +24,7 @@ SOFTWARE.
 
 //! Restrict
 //!
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 
 /// Error handling module
 pub mod error;

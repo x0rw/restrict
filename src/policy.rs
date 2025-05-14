@@ -2,23 +2,30 @@ use libc::{raise, SIGSTOP};
 
 pub use crate::{error::SeccompError, syscall::Syscall, wrapper::Action};
 use crate::{
-    filter::{seccomp, tracer::TracerFilter, RestrictFilter},
+    filter::{
+        seccomp::{self, SeccompFilter},
+        tracer::{TracerFilter, TracerMap},
+        RestrictFilter,
+    },
     tracer::TracingHandle,
-    wrapper::{self, ForkResult, PtraceWrapper, SeccompWrapper, TraceAction},
+    wrapper::{PtraceWrapper, SeccompWrapper, TraceAction},
 };
 
 /// Restrict policy
 pub struct Policy {
     context: Option<SeccompWrapper>,
-    rules: Vec<Box<dyn RestrictFilter>>,
+    pub(crate) seccomp_rules: Vec<SeccompFilter>,
+    pub(crate) trace_rules: Vec<TracerFilter>,
     trace: bool,
 }
+/// Policy implementation
 impl Policy {
     /// decclare a new filter with default policy
-    pub fn new(default: Action) -> Result<Self, SeccompError> {
+    fn new(default: Action) -> Result<Self, SeccompError> {
         Ok(Self {
             context: Some(SeccompWrapper::init_context(default)?),
-            rules: Vec::new(),
+            seccomp_rules: Vec::new(),
+            trace_rules: Vec::new(),
             trace: false,
         })
     }
@@ -35,70 +42,85 @@ impl Policy {
 
     /// Syscall fail with a custom error no
     pub fn fail_with(&mut self, syscall: Syscall, errno: u16) -> &mut Self {
-        self.rules.push(Box::new(seccomp::SeccompFilter::new(
-            syscall,
-            Action::Errno(errno),
-        )));
+        self.seccomp_rules
+            .push(seccomp::SeccompFilter::new(syscall, Action::Errno(errno)));
         self
     }
 
+    /// tracing syscalls
     pub fn trace<T>(&mut self, syscall: Syscall, tracer: T) -> &mut Self
     where
         T: Fn(Syscall) -> TraceAction + 'static,
     {
-        self.rules
-            .push(Box::new(TracerFilter::new(syscall, tracer)));
+        self.trace_rules.push(TracerFilter::new(syscall, tracer));
         self.trace = true;
         self
     }
 
     /// allow a syscall
     pub fn allow(&mut self, syscall: Syscall) -> &mut Self {
-        self.rules.push(Box::new(seccomp::SeccompFilter::new(
-            syscall,
-            Action::Allow,
-        )));
+        self.seccomp_rules
+            .push(seccomp::SeccompFilter::new(syscall, Action::Allow));
         self
     }
 
     /// deny a syscall
     pub fn deny(&mut self, syscall: Syscall) -> &mut Self {
-        self.rules
-            .push(Box::new(seccomp::SeccompFilter::new(syscall, Action::Kill)));
+        self.seccomp_rules
+            .push(seccomp::SeccompFilter::new(syscall, Action::Kill));
         self
     }
     /// apply
     pub fn apply(&mut self) -> Result<(), SeccompError> {
         let mut context = self.context.take().ok_or(SeccompError::Fork)?;
-        for filter in self.rules.iter() {
+        // in bpf the order of filters is important
+        // but we shouldn't care because we ensure no conflicts happen
+
+        // apply seccomp rules
+        for filter in self.seccomp_rules.iter() {
+            filter.apply(&mut context)?;
+        }
+        // apply seccomp TRACE rule specificallt
+        for filter in self.trace_rules.iter() {
             filter.apply(&mut context)?;
         }
         if self.trace {
+            // Fork the current process:
+            // - The parent enters an event loop to trace system calls made by the child.
+            // - The child sets ptrace options and installs the seccomp filter,
+            //   then returns immediately to avoid blocking the parent.
+            //
+            // Important notes:
+            // - If the child crashes or receives an unexpected signal, it exits
+            //   immediately to prevent leaving behind a zombie process.
             let spawned = self.spawn_traced().unwrap();
             match spawned {
                 TracingHandle::Child => {
                     // here tracing is already enabled
                     //
                     //loading the context in the child(only)
+
+                    // - The child raises a SIGSTOP to sync with the parent
                     unsafe { raise(SIGSTOP) };
+                    // After this point the parent and the child are in sync so we
+                    // load the accumulated filters and start tracing
                     context.load()?;
                 }
                 TracingHandle::Parent {
-                    pid: _,
-                    tracer,
-                    filters: _,
+                    child_pid,
+                    // filters: _,
                 } => {
-                    // here goes the event loop
+                    // here goes the event loop //
 
-                    // print!("\n parent waiting for signal");
-                    tracer.wait_for_signal(SIGSTOP)?;
-                    // print!("\n found a signal");
-                    tracer.set_traceseccomp()?.syscall_trace()?;
-                    let tracer_h = |sys| {
-                        println!("\n caught {:#?}", sys);
-                        return TraceAction::Continue;
-                    };
-                    tracer.wait_for_syscall(tracer_h)?;
+                    // wait for sync signal from the child
+                    PtraceWrapper::with_pid(child_pid).wait_for_signal(SIGSTOP)?;
+                    PtraceWrapper::with_pid(child_pid).set_traceseccomp_option()?;
+                    PtraceWrapper::with_pid(child_pid).syscall_trace()?;
+                    // now its finally time for the loop
+
+                    let trace_r = std::mem::take(&mut self.trace_rules);
+                    let mapped_tracers = TracerMap::from(trace_r);
+                    PtraceWrapper::with_pid(child_pid).event_loop(mapped_tracers)?;
 
                     print!("exiting -- ");
 
@@ -106,33 +128,13 @@ impl Policy {
                 }
             }
         } else {
+            // if there is no tracing just load the filters directly
             context.load()?;
         }
         Ok(())
     }
-    ///spawn tracer
-    pub fn spawn_traced(&mut self) -> Result<TracingHandle, SeccompError> {
-        println!("Applying Trace filter");
-        let result = PtraceWrapper::fork()?;
-        match result.get_process() {
-            ForkResult::Child => {
-                // child process
-                wrapper::PtraceWrapper::new(0).enable_tracing()?;
-                return Ok(TracingHandle::Child);
-            }
-            ForkResult::Parent(pid) => {
-                // println!("pid: {_pid}");
-                let filters = std::mem::take(&mut self.rules);
-                return Ok(TracingHandle::Parent {
-                    pid: pid.to_owned(),
-                    tracer: result,
-                    filters,
-                });
-                // std::process::exit(0);
-            }
-        }
-    }
 }
+
 // }
 // /// /// Seccomp filters of syscall and actions
 // /// #[derive()]
