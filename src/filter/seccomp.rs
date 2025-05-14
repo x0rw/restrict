@@ -16,12 +16,16 @@ impl SeccompFilter {
     pub fn new(syscall: Syscall, action: Action) -> Self {
         Self { syscall, action }
     }
+    pub fn syscall(&self) -> Syscall {
+        self.syscall
+    }
+
+    pub fn action(&self) -> Action {
+        self.action
+    }
 }
 impl RestrictFilter for SeccompFilter {
     fn apply(&self, ctx: &mut SeccompWrapper) -> Result<(), SeccompError> {
         ctx.add_rule(self.action, self.syscall)
-    }
-    fn syscall(&self) -> Syscall {
-        self.syscall
     }
 }

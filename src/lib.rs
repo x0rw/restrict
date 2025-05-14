@@ -23,22 +23,23 @@ SOFTWARE.
  */
 
 //! Restrict
-//!
 #![deny(missing_docs)]
 
 /// Error handling module
 pub mod error;
 /// Modules for most common rules
-pub mod modules;
+// this should be called profiles
+// pub mod modules;
 /// Safer, unsafe-free and ergonomic wrapper around wrapper module
 pub mod policy;
 /// Strongly tyoed system calls enum
 pub mod syscall;
 /// Tracer
-pub mod tracer;
+mod tracer;
 
 /// filters
-pub mod filter;
+mod filter;
 /// unsafe bindings
-pub mod wrapper;
+mod wrapper;
 pub use error::SeccompError;
+pub use wrapper::TraceAction;

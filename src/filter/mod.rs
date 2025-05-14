@@ -1,8 +1,4 @@
-use crate::{
-    error::SeccompError,
-    policy::Syscall,
-    wrapper::{SeccompWrapper, TraceAction},
-};
+use crate::{error::SeccompError, wrapper::SeccompWrapper};
 
 /// seccomp filters
 pub mod seccomp;
@@ -12,10 +8,4 @@ pub mod tracer;
 pub(crate) trait RestrictFilter {
     /// this method defines the behavior of applying a filter on the context(eg, seccomp context)
     fn apply(&self, ctx: &mut SeccompWrapper) -> Result<(), SeccompError>;
-    /// getting the syscall
-    fn syscall(&self) -> Syscall;
-    /// tracer callback
-    fn callback(&self) -> Option<&Box<dyn Fn(Syscall) -> TraceAction>> {
-        return None;
-    }
 }

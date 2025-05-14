@@ -1,11 +1,11 @@
 use std::fs;
 
-use restrict::{policy::Policy, wrapper::TraceAction, *};
+use restrict::{policy::Policy, TraceAction, *};
 
 fn main() -> Result<(), SeccompError> {
     println!("This process will be killed at the end!");
 
-    let mut filter = Policy::allow_all()?;
+    let mut filter = Policy::allow_all()?.verbose();
     // filter.allow(Syscall::Write);
     // filter.allow(Syscall::Openat);
     // filter.allow(Syscall::Sigaltstack);
@@ -17,7 +17,7 @@ fn main() -> Result<(), SeccompError> {
     });
     filter.trace(policy::Syscall::Write, |syscall| {
         println!("Syscall {:?} triggered [this is a custom handler]", syscall);
-        return TraceAction::Kill;
+        return TraceAction::Continue;
     });
 
     filter.apply()?;

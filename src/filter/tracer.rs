@@ -23,6 +23,10 @@ impl TracerFilter {
         }
     }
 
+    pub fn syscall(&self) -> Syscall {
+        self.syscall
+    }
+
     pub fn to_map(self) -> (Syscall, Box<dyn Fn(Syscall) -> TraceAction>) {
         (self.syscall, self.callback)
     }
@@ -30,12 +34,6 @@ impl TracerFilter {
 impl RestrictFilter for TracerFilter {
     fn apply(&self, ctx: &mut SeccompWrapper) -> Result<(), SeccompError> {
         ctx.add_rule(Action::Trace, self.syscall)
-    }
-    fn syscall(&self) -> Syscall {
-        self.syscall
-    }
-    fn callback(&self) -> Option<&Box<dyn Fn(Syscall) -> TraceAction>> {
-        Some(&self.callback)
     }
 }
 /// This is the struct that holds all the syscalls with their handlers

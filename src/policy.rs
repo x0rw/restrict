@@ -17,6 +17,7 @@ pub struct Policy {
     pub(crate) seccomp_rules: Vec<SeccompFilter>,
     pub(crate) trace_rules: Vec<TracerFilter>,
     trace: bool,
+    verbose: bool,
 }
 /// Policy implementation
 impl Policy {
@@ -27,6 +28,7 @@ impl Policy {
             seccomp_rules: Vec::new(),
             trace_rules: Vec::new(),
             trace: false,
+            verbose: false,
         })
     }
 
@@ -78,10 +80,20 @@ impl Policy {
 
         // apply seccomp rules
         for filter in self.seccomp_rules.iter() {
+            if self.verbose {
+                println!(
+                    "[+] Applying {:?} filter for {:?}",
+                    filter.action(),
+                    filter.syscall()
+                );
+            }
             filter.apply(&mut context)?;
         }
         // apply seccomp TRACE rule specificallt
         for filter in self.trace_rules.iter() {
+            if self.verbose {
+                println!("[+] Applying Traceing filter for {:?}", filter.syscall());
+            }
             filter.apply(&mut context)?;
         }
         if self.trace {
@@ -93,9 +105,17 @@ impl Policy {
             // Important notes:
             // - If the child crashes or receives an unexpected signal, it exits
             //   immediately to prevent leaving behind a zombie process.
+
+            if self.verbose {
+                println!("[+] Forking the current process");
+            }
             let spawned = self.spawn_traced().unwrap();
             match spawned {
                 TracingHandle::Child => {
+                    if self.verbose {
+                        println!("== [Child-process]: tracing is enabled(PTRACE_TRACEME)");
+                        println!("== [Child-process]: Raising SIGSTOP signal to sync with the parent process");
+                    }
                     // here tracing is already enabled
                     //
                     //loading the context in the child(only)
@@ -105,33 +125,53 @@ impl Policy {
                     // After this point the parent and the child are in sync so we
                     // load the accumulated filters and start tracing
                     context.load()?;
+
+                    if self.verbose {
+                        println!("== [Child-process]: Synced, LOADING filters succeded");
+                    }
                 }
                 TracingHandle::Parent {
                     child_pid,
                     // filters: _,
                 } => {
+                    // this is more 'verbosy' atm.
                     // here goes the event loop //
-
                     // wait for sync signal from the child
+
+                    if self.verbose {
+                        println!("[Parent-process]: Waiting for sync signal");
+                    }
                     PtraceWrapper::with_pid(child_pid).wait_for_signal(SIGSTOP)?;
                     PtraceWrapper::with_pid(child_pid).set_traceseccomp_option()?;
                     PtraceWrapper::with_pid(child_pid).syscall_trace()?;
+
+                    if self.verbose {
+                        println!("[Parent-process]: Synced successfully");
+                    }
                     // now its finally time for the loop
 
                     let trace_r = std::mem::take(&mut self.trace_rules);
                     let mapped_tracers = TracerMap::from(trace_r);
-                    PtraceWrapper::with_pid(child_pid).event_loop(mapped_tracers)?;
 
-                    print!("exiting -- ");
+                    if self.verbose {
+                        println!("[Parent-process]: Listening to incoming syscalls");
+                    }
+                    PtraceWrapper::with_pid(child_pid).event_loop(mapped_tracers)?;
 
                     std::process::exit(0);
                 }
             }
         } else {
+            println!("[+] Loading Seccomp Context");
             // if there is no tracing just load the filters directly
             context.load()?;
         }
         Ok(())
+    }
+    /// verbose mode
+    pub fn verbose(mut self) -> Self {
+        self.verbose = true;
+        self
     }
 }
 
