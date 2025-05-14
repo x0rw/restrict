@@ -162,7 +162,9 @@ impl Policy {
                 }
             }
         } else {
-            println!("[+] Loading Seccomp Context");
+            if self.verbose {
+                println!("[+] Loading Seccomp Context");
+            }
             // if there is no tracing just load the filters directly
             context.load()?;
         }
