@@ -2,8 +2,7 @@ use std::{fs, thread::sleep, time::Duration};
 
 use restrict::{
     policy::{self, Policy, Syscall},
-    wrapper::TraceAction,
-    SeccompError,
+    SeccompError, TraceAction,
 };
 
 fn main() -> Result<(), SeccompError> {

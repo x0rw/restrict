@@ -25,7 +25,6 @@ impl Policy {
     /// before returning the child enables tracing(PTRACE_TRACEME)
     /// TODO(x0rw): move this
     pub(crate) fn spawn_traced(&mut self) -> Result<TracingHandle, SeccompError> {
-        println!("Applying Trace filter");
         let result = PtraceWrapper::fork()?;
         match result.get_process() {
             ForkResult::Child => {
