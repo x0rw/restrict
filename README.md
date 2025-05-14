@@ -46,8 +46,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Block process creation and tracing
     policy
-        .deny(Syscall::Execve)?
-        .deny(Syscall::Ptrace)?
+        .deny(Syscall::Execve)
+        .deny(Syscall::Ptrace)
         .apply()?;  // Load the final rule set into the kernel
 
     // Your program continues here with the policy enforced
@@ -60,8 +60,8 @@ If you prefer blocked syscalls to return a specific errno instead of killing the
 ```rust
 let mut policy = Policy::allow_all()?;
 policy
-    .fail_with(Syscall::Execve, 5)?   // Execve returns errno 5 (EIO)
-    .fail_with(Syscall::Ptrace, 5)?
+    .fail_with(Syscall::Execve, 5)   // Execve returns errno 5 (EIO)
+    .fail_with(Syscall::Ptrace, 5)
     .apply()?;
 ```
 
@@ -70,8 +70,8 @@ For a stricter default that denies everything except what you explicitly allow:
 ```rust
 let mut policy = Policy::deny_all()?;
 policy
-    .allow(Syscall::Read)?
-    .allow(Syscall::Write)?
+    .allow(Syscall::Read)
+    .allow(Syscall::Write)
     .apply()?;
 ```
 
@@ -84,7 +84,7 @@ policy
     .trace(Syscall::Openat, |syscall| {
         println!("Intercepted syscall: {:?}", syscall);
         TraceAction::Continue
-    })?
+    })
     .apply()?;
 
 // Attempt to open a file; your handler will run first
