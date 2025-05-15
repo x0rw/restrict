@@ -99,8 +99,8 @@ impl Action {
 }
 
 use libc::{
-    pid_t, ptrace, waitpid, PTRACE_CONT, PTRACE_GETREGS, PTRACE_KILL, PTRACE_O_TRACESECCOMP,
-    PTRACE_SETOPTIONS, PTRACE_SYSCALL, PTRACE_TRACEME, WIFEXITED, WIFSIGNALED, WIFSTOPPED,
+    kill, pid_t, ptrace, waitpid, PTRACE_CONT, PTRACE_GETREGS, PTRACE_KILL, PTRACE_O_TRACESECCOMP,
+    PTRACE_SETOPTIONS, PTRACE_SYSCALL, PTRACE_TRACEME, SIGKILL, WIFEXITED, WIFSIGNALED, WIFSTOPPED,
     WSTOPSIG,
 };
 /// Fork
@@ -185,6 +185,7 @@ impl PtraceWrapper {
     pub fn event_loop(&self, trace_map: TracerMap) -> Result<(), SeccompError> {
         let child = self.get_process().get_pid();
         let wrapper = PtraceWrapper::with_pid(child);
+        // println!("[!] child pid {}", wrapper.get_process().get_pid());
         loop {
             let mut status = 0;
             let ret = unsafe { waitpid(child, &mut status, 0) };
@@ -205,12 +206,18 @@ impl PtraceWrapper {
                 if sig == libc::SIGTRAP && (status >> 16) == libc::PTRACE_EVENT_SECCOMP {
                     let regs = wrapper.get_registers()?;
 
-                    // handler fynction
+                    // get Syscall from regs.orig_rax
                     let caught_syscall = Syscall::try_from(regs.orig_rax as i32)?;
+                    // Getting the syscall handler
                     let mapped_fn = trace_map.find_by_syscall(caught_syscall).take().unwrap();
                     match mapped_fn(caught_syscall) {
                         TraceAction::Continue => wrapper.continue_execution()?,
-                        TraceAction::Kill => wrapper.kill_execution()?,
+                        TraceAction::Kill => {
+                            wrapper.kill_execution()?;
+                            // if the child is killed the parent should be killed too
+                            // todo(z0rw): exit gracefully
+                            std::process::exit(SIGKILL);
+                        }
                     }
                 } else {
                     wrapper.syscall_trace()?;
@@ -295,15 +302,22 @@ impl PtraceWrapper {
     /// killing after ptrace traps the syscall
     // TODO(x0rw): instead of killing facilitate setting orig_rax to -1 (-EPREM)
     pub fn kill_execution(&self) -> Result<(), SeccompError> {
-        let _ret = unsafe {
-            ptrace(
-                PTRACE_KILL,
-                self.process.get_pid(),
-                std::ptr::null_mut::<c_void>(),
-                0 as *mut c_void,
-            )
-        };
-        // println!("ptrace output :{}", ret);
+        // println!("[Child-process] killing {}", self.process.get_pid());
+        let kill_res = unsafe { kill(self.process.get_pid(), SIGKILL) };
+        // println!("[Child-process] killing {}", self.process.get_pid());
+
+        if kill_res == -1 {
+            println!("[Child-process] Failed to kill the child");
+            println!("[Child-process] Fallback to PTRACE_KILL");
+            let _ret = unsafe {
+                ptrace(
+                    PTRACE_KILL,
+                    self.process.get_pid(),
+                    std::ptr::null_mut::<c_void>(),
+                    0 as *mut c_void,
+                )
+            };
+        }
 
         Ok(())
     }

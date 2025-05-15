@@ -154,7 +154,9 @@ impl Policy {
                     let mapped_tracers = TracerMap::from(trace_r);
 
                     if self.verbose {
-                        println!("[Parent-process]: Listening to incoming syscalls");
+                        println!(
+                            "[Parent-process]: Listening to incoming syscalls from {child_pid}"
+                        );
                     }
                     PtraceWrapper::with_pid(child_pid).event_loop(mapped_tracers)?;
 
