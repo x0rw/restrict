@@ -72,6 +72,12 @@ impl Policy {
             .push(seccomp::SeccompFilter::new(syscall, Action::Kill));
         self
     }
+    /// disable io-uring bypass
+    pub fn disable_iouring_bypass(&mut self) -> &mut Self {
+        self.deny(Syscall::IoUringEnter)
+            .deny(Syscall::IoUringSetup)
+            .deny(Syscall::IoUringRegister)
+    }
     /// apply
     pub fn apply(&mut self) -> Result<(), SeccompError> {
         let mut context = self.context.take().ok_or(SeccompError::Fork)?;
