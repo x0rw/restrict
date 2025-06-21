@@ -12,11 +12,22 @@ categories = ["os::linux-apis", "api-bindings", "security"]
 authors = ["x0rw <mahdi.svt5@gmail.com>"] 
 build = 'build.rs'
 
+[dev-dependencies]
+metrics-exporter-prometheus = "0.8"
+
 [dependencies]
+
+tracing-subscriber = "0.3.19"
 libc = "0.2.172"
 libseccomp-sys = "0.3.0"
+metrics = "0.18"
+tracing = "0.1"
 thiserror = "1"
+tokio = { version = "1.45.1", features= ["full"]}
 
+# [features]
+# default = ["metrics"]
+# metrics = ["dep:metrics"]
 [lib]
 name = "restrict"
 
