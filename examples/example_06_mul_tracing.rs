@@ -5,7 +5,7 @@ use restrict::{policy::Policy, TraceAction, *};
 fn main() -> Result<(), SeccompError> {
     println!("This process will be killed at the end!");
 
-    let mut filter = Policy::allow_all()?.verbose();
+    let mut filter = Policy::allow_all()?.verbose(true);
     // filter.allow(Syscall::Write);
     // filter.allow(Syscall::Openat);
     // filter.allow(Syscall::Sigaltstack);

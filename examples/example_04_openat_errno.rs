@@ -3,6 +3,7 @@ use std::fs;
 use restrict::{syscall::Syscall, *};
 
 use policy::Policy;
+
 fn main() -> Result<(), SeccompError> {
     let mut filter = Policy::allow_all()?;
 

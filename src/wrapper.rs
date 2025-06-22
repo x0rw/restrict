@@ -7,10 +7,11 @@ use std::{
 
 use libseccomp_sys::*;
 
-use crate::{error::SeccompError, filter::tracer::TracerMap, syscall::Syscall};
+use crate::{error::SeccompError, filter::tracer::TracerMap, restrict_error, syscall::Syscall};
 
 #[allow(dead_code)]
 /// Todo(x0rw): here make emums for libseccomp-sys that interact with it
+#[derive(Debug)]
 pub(crate) struct SeccompWrapper {
     pub context: NonNull<c_void>,
     pub default_action: Action,
@@ -73,8 +74,8 @@ impl SeccompWrapper {
 }
 
 /// Action that can be applied to a context or a syscall
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Action {
     /// allowing all in the context or allowing a syscall
     Allow = SCMP_ACT_ALLOW,
@@ -104,6 +105,7 @@ use libc::{
     WSTOPSIG,
 };
 /// Fork
+#[derive(Debug)]
 pub enum ForkResult {
     /// parent
     Parent(pid_t),
@@ -121,6 +123,7 @@ impl ForkResult {
 }
 
 /// Ptrace wrapper
+#[derive(Debug)]
 pub struct PtraceWrapper {
     process: ForkResult,
 }
@@ -162,7 +165,7 @@ impl PtraceWrapper {
         let mut status = 0;
         let ret = unsafe { libc::waitpid(self.get_process().get_pid(), &mut status, 0) };
         if ret == -1 {
-            eprintln!("waitpid failed");
+            restrict_error!("waitpid failed");
             return Err(io::Error::last_os_error());
         }
         // we are looking for a specific signal that the child raised
@@ -170,8 +173,8 @@ impl PtraceWrapper {
             // if this is triggered this means either an external(process | thread) signal triggered this
             // if none of those triggered this fallure check the parent execution flow from forking
             // to wait_for_signal()
-            eprintln!(
-                " - Unexpected signal: got {}, expected {}. Raw status = {:#x}",
+            restrict_error!(
+                "  Unexpected signal: got {}, expected {}. Raw status = {:#x}",
                 WSTOPSIG(status),
                 expected,
                 status
@@ -182,6 +185,7 @@ impl PtraceWrapper {
     }
 
     /// event loop
+
     pub fn event_loop(&self, trace_map: TracerMap) -> Result<(), SeccompError> {
         let child = self.get_process().get_pid();
         let wrapper = PtraceWrapper::with_pid(child);
@@ -307,8 +311,8 @@ impl PtraceWrapper {
         // println!("[Child-process] killing {}", self.process.get_pid());
 
         if kill_res == -1 {
-            println!("[Child-process] Failed to kill the child");
-            println!("[Child-process] Fallback to PTRACE_KILL");
+            restrict_error!("[Child-process] Failed to kill the child");
+            restrict_error!("[Child-process] Fallback to PTRACE_KILL");
             let _ret = unsafe {
                 ptrace(
                     PTRACE_KILL,
@@ -335,6 +339,7 @@ impl PtraceWrapper {
     }
 }
 /// Action taken by the handler function after a syscall is caught
+#[derive(Debug)]
 pub enum TraceAction {
     /// continue syscall execution
     Continue,

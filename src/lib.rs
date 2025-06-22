@@ -43,3 +43,5 @@ mod filter;
 mod wrapper;
 pub use error::SeccompError;
 pub use wrapper::TraceAction;
+pub(crate) mod logging;
+pub(crate) mod metrics;
