@@ -25,3 +25,8 @@
 - Add support for Tracing multiple syscalls at the same time
 - Fix Issues
 
+## [0.1.6] - 2025-05-15
+### Added 
+- Add .disable_iouring_bypass() to disable iouring bypasses
+- Add Support for Tracing and Logging
+
