@@ -12,11 +12,11 @@ pub(crate) struct TracerFilter {
     callback: Box<dyn Fn(Syscall) -> TraceAction>,
 }
 
-impl Debug for TracerFilter {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "TracerFilter({:?}), ", self.syscall)
-    }
-}
+// impl Debug for TracerFilter {
+//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+//         write!(f, "TracerFilter({:?}), ", self.syscall)
+//     }
+// }
 impl TracerFilter {
     /// declare a new filter
     pub fn new<F>(syscall: Syscall, callback: F) -> Self

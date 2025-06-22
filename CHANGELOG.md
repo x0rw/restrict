@@ -19,3 +19,9 @@
 - Add Syscall tracing trace(Syscall, Fn(Syscall) -> TraceAction ) with custom hook function
 - Example tracing usage
 - Low level Ptrace wrapper
+
+## [0.1.5] - 2025-05-15
+### Added 
+- Add support for Tracing multiple syscalls at the same time
+- Fix Issues
+

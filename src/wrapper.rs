@@ -6,9 +6,8 @@ use std::{
 };
 
 use libseccomp_sys::*;
-use tracing::error;
 
-use crate::{error::SeccompError, filter::tracer::TracerMap, syscall::Syscall};
+use crate::{error::SeccompError, filter::tracer::TracerMap, restrict_error, syscall::Syscall};
 
 #[allow(dead_code)]
 /// Todo(x0rw): here make emums for libseccomp-sys that interact with it
@@ -166,7 +165,7 @@ impl PtraceWrapper {
         let mut status = 0;
         let ret = unsafe { libc::waitpid(self.get_process().get_pid(), &mut status, 0) };
         if ret == -1 {
-            error!("waitpid failed");
+            restrict_error!("waitpid failed");
             return Err(io::Error::last_os_error());
         }
         // we are looking for a specific signal that the child raised
@@ -174,7 +173,7 @@ impl PtraceWrapper {
             // if this is triggered this means either an external(process | thread) signal triggered this
             // if none of those triggered this fallure check the parent execution flow from forking
             // to wait_for_signal()
-            error!(
+            restrict_error!(
                 "  Unexpected signal: got {}, expected {}. Raw status = {:#x}",
                 WSTOPSIG(status),
                 expected,
@@ -187,7 +186,6 @@ impl PtraceWrapper {
 
     /// event loop
 
-    #[tracing::instrument]
     pub fn event_loop(&self, trace_map: TracerMap) -> Result<(), SeccompError> {
         let child = self.get_process().get_pid();
         let wrapper = PtraceWrapper::with_pid(child);
@@ -313,8 +311,8 @@ impl PtraceWrapper {
         // println!("[Child-process] killing {}", self.process.get_pid());
 
         if kill_res == -1 {
-            error!("[Child-process] Failed to kill the child");
-            error!("[Child-process] Fallback to PTRACE_KILL");
+            restrict_error!("[Child-process] Failed to kill the child");
+            restrict_error!("[Child-process] Fallback to PTRACE_KILL");
             let _ret = unsafe {
                 ptrace(
                     PTRACE_KILL,

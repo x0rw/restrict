@@ -7,7 +7,6 @@ use crate::{
 use super::RestrictFilter;
 
 /// seccomp fiters duh!
-#[derive(Debug)]
 pub(crate) struct SeccompFilter {
     syscall: Syscall,
     action: Action,
