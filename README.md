@@ -8,17 +8,21 @@
 
 **Ergonomic and DX-first Linux syscall filtering crate**
 
-`restrict` offers a clean, expressive API to allow or deny syscalls on Linux. It generates a system-aware `Syscall` enum at build time and exposes a safe policy manager to configure syscall rules for your application.
+`restrict` offers a clean, expressive API to allow, deny, trace, and even manipulate Linux syscalls at runtime. It generates a system‑aware Syscall enum at build time and exposes a safe policy manager, complete with metrics, structured logging, and interception hooks.
 
 ---
 
 ## Features
 
-* **Auto-generated** `Syscall` enum matched to your host architecture
-* **Ergonomic API** (e.g., `policy.allow(Syscall::Write)?;`)
-* **Safe wrappers**: all unsafe code is isolated in `wrapper.rs`
-* Select either **allow-by-default** or **deny-by-default** mode
-* Attach custom handlers to intercept and manage specific syscalls
+- **Auto‑generated** `Syscall` enum matched to your host architecture  
+- **Ergonomic API** (e.g., `policy.allow(Syscall::Write)?;`)  
+- **Safe wrappers**: all unsafe code is isolated in `wrapper.rs`  
+- **Dual policy modes**: choose **allow‑by‑default** or **deny‑by‑default**  
+- **Interception hooks**:  
+  - `entry_intercept` & `exit_intercept` — inspect, modify, or skip individual syscalls  
+  - **Registers manipulation** — read/write syscall arguments and return values  
+- **Built‑in metrics**: Prometheus‑compatible counters, gauges, and histograms  
+- **Structured logging**: plug into `tracing_subscriber` (or your own logger)  
 
 ---
 
@@ -32,6 +36,24 @@ sudo apt-get install -y libseccomp-dev
 ```
 
 ---
+
+## Examples
+
+Check out the `examples/` directory for runnable demos showcasing different features:
+
+```bash
+$ tree examples
+examples
+├── example_01_write.rs            # Simple write interception
+├── example_02_openat.rs           # openat tracing
+├── example_03.rs                  # Basic allow/deny policy
+├── example_04_openat_errno.rs     # openat with custom errno
+├── example_06_mul_tracing.rs      # Multiple syscall tracers
+├── example_07_command.rs          # Execve sandbox
+├── example_intercept.rs           # Registers manipulation example
+├── example_logs.rs                # Structured logging via tracing
+├── prometheus_metrics.rs          # Prometheus metrics exporter
+└── truncate_filter.rs             # Truncate write() syscall demo
 
 ## Quickstart
 

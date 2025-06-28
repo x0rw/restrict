@@ -2,7 +2,7 @@
 //!
 //! Usage:
 //! ```bash
-//! cargo run --example exammple_logs
+//! cargo run --example exammple_logs --features logging
 //! ```
 use std::fs;
 

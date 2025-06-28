@@ -1,14 +1,24 @@
 [package]
 name = "restrict" 
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021" 
 description = "A crate to allow, deny, or trace Linux syscalls with an ergonomic, auto-generated enum customized for your system architecture."
 license = "MIT"
 repository = "https://github.com/x0rw/restrict"
+homepage        = "https://github.com/x0rw/restrict"
 documentation = "https://docs.rs/restrict/latest"
 readme = "README.md"   
-keywords = [ "linux", "security", "syscall", "policy", "sandbox"]
-categories = ["os::linux-apis", "api-bindings", "security"] 
+keywords        = [
+    "linux", "security", "syscall", "sandbox",
+    "seccomp", "ptrace", "policy", "tracing",
+    "container", "isolation"
+]
+categories      = [
+    "api-bindings",
+    "os::linux-apis",
+    "security",
+    "development-tools::debugging"
+]
 authors = ["x0rw <mahdi.svt5@gmail.com>"] 
 build = 'build.rs'
 
@@ -46,6 +56,3 @@ regex = "1.11.1"
 [package.metadata.docs.rs]
 documentation = true
 
-[[bin]]
-name = "create_file_test"
-path = "tests/src/create_file.rs"
