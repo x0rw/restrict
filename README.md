@@ -6,9 +6,8 @@
 [![CI](https://github.com/x0rw/restrict/actions/workflows/rust.yml/badge.svg)](https://github.com/x0rw/restrict/actions/workflows/rust.yml)
 
 
-**Ergonomic and DX-first Linux syscall filtering crate**
-
-`restrict` offers a clean, expressive API to allow, deny, trace, and even manipulate Linux syscalls at runtime. It generates a system‑aware Syscall enum at build time and exposes a safe policy manager, complete with metrics, structured logging, and interception hooks.
+**`restrict`  is an advanced Rust crate providing ergonomic and developer-friendly Linux syscall filtering.** 
+It empowers you to precisely control, monitor, and even dynamically alter system calls at runtime through a clean, expressive API. With an auto-generated, system-aware `Syscall` enum and a robust policy manager, `restrict` offers built-in metrics, structured logging, and powerful interception hooks for advanced security and observability.
 
 ---
 
