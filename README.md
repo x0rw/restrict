@@ -44,16 +44,17 @@ Check out the `examples/` directory for runnable demos showcasing different feat
 ```bash
 $ tree examples
 examples
-├── example_01_write.rs            # Simple write interception
-├── example_02_openat.rs           # openat tracing
-├── example_03.rs                  # Basic allow/deny policy
-├── example_04_openat_errno.rs     # openat with custom errno
-├── example_06_mul_tracing.rs      # Multiple syscall tracers
-├── example_07_command.rs          # Execve sandbox
-├── example_intercept.rs           # Registers manipulation example
+├── example_01_write.rs            # Simple write and open deny policy
+├── example_02_openat.rs           # openat deny 
+├── example_openat_errno.rs     # openat with custom errno
+├── example_mul_tracing.rs      # Multiple syscall tracers
+├── example_command.rs          # Execve sandbox
+├── example_intercept.rs           # Write syscall Registers manipulation example
 ├── example_logs.rs                # Structured logging via tracing
-├── prometheus_metrics.rs          # Prometheus metrics exporter
-└── truncate_filter.rs             # Truncate write() syscall demo
+├── prometheus_metrics.rs          # Prometheus metrics exporter example
+└── truncate_filter.rs             # Truncate write() syscall demo similar to example_intercept
+```
+```
 
 ## Quickstart
 
