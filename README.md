@@ -7,6 +7,7 @@
 
 
 **`restrict`  is an advanced Rust crate providing ergonomic and developer-friendly Linux syscall filtering.** 
+
 It empowers you to precisely control, monitor, and even dynamically alter system calls at runtime through a clean, expressive API. With an auto-generated, system-aware `Syscall` enum and a robust policy manager, `restrict` offers built-in metrics, structured logging, and powerful interception hooks for advanced security and observability.
 
 ---
