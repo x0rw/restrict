@@ -54,7 +54,6 @@ examples
 ├── prometheus_metrics.rs          # Prometheus metrics exporter example
 └── truncate_filter.rs             # Truncate write() syscall demo similar to example_intercept
 ```
-```
 
 ## Quickstart
 
