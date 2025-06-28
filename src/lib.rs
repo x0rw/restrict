@@ -27,18 +27,21 @@ SOFTWARE.
 
 /// Error handling module
 pub mod error;
+/// filters
+mod filter;
+/// interceptors
+pub mod interceptor;
 /// Modules for most common rules
 // this should be called profiles
 // pub mod modules;
 /// Safer, unsafe-free and ergonomic wrapper around wrapper module
 pub mod policy;
+/// registers
+pub mod registers;
 /// Strongly tyoed system calls enum
 pub mod syscall;
 /// Tracer
 mod tracer;
-
-/// filters
-mod filter;
 /// unsafe bindings
 mod wrapper;
 pub use error::SeccompError;

@@ -2,12 +2,19 @@ use std::{
     ffi::c_void,
     io::{self},
     mem::MaybeUninit,
-    ptr::NonNull,
+    ptr::{self, NonNull},
 };
 
 use libseccomp_sys::*;
 
-use crate::{error::SeccompError, filter::tracer::TracerMap, restrict_error, syscall::Syscall};
+use crate::{
+    error::SeccompError,
+    filter::{intercept::InterceptorMap, tracer::TracerMap},
+    interceptor::Interceptor,
+    registers::Registers,
+    restrict_error,
+    syscall::Syscall,
+};
 
 #[allow(dead_code)]
 /// Todo(x0rw): here make emums for libseccomp-sys that interact with it
@@ -101,8 +108,8 @@ impl Action {
 
 use libc::{
     kill, pid_t, ptrace, waitpid, PTRACE_CONT, PTRACE_GETREGS, PTRACE_KILL, PTRACE_O_TRACESECCOMP,
-    PTRACE_SETOPTIONS, PTRACE_SYSCALL, PTRACE_TRACEME, SIGKILL, WIFEXITED, WIFSIGNALED, WIFSTOPPED,
-    WSTOPSIG,
+    PTRACE_O_TRACESYSGOOD, PTRACE_SETOPTIONS, PTRACE_SETREGS, PTRACE_SYSCALL, PTRACE_TRACEME,
+    SIGKILL, SIGTRAP, WIFEXITED, WIFSIGNALED, WIFSTOPPED, WSTOPSIG,
 };
 /// Fork
 #[derive(Debug)]
@@ -186,13 +193,21 @@ impl PtraceWrapper {
 
     /// event loop
 
-    pub fn event_loop(&self, trace_map: TracerMap) -> Result<(), SeccompError> {
+    pub fn event_loop(
+        &self,
+        trace_map: TracerMap,
+        intercept_map: InterceptorMap,
+        post_intercept_map: InterceptorMap,
+    ) -> Result<(), SeccompError> {
         let child = self.get_process().get_pid();
         let wrapper = PtraceWrapper::with_pid(child);
+        let mut in_syscall = false;
         // println!("[!] child pid {}", wrapper.get_process().get_pid());
         loop {
             let mut status = 0;
+
             let ret = unsafe { waitpid(child, &mut status, 0) };
+
             if ret == -1 {
                 let err = io::Error::last_os_error();
                 if err.raw_os_error() == Some(libc::ECHILD) {
@@ -201,30 +216,99 @@ impl PtraceWrapper {
                 panic!("waitpid failed: {}", err);
                 // return Err(SeccompError::Unknown);
             }
+
             if WIFEXITED(status) || WIFSIGNALED(status) {
                 break;
             }
 
             if WIFSTOPPED(status) {
                 let sig = WSTOPSIG(status);
-                if sig == libc::SIGTRAP && (status >> 16) == libc::PTRACE_EVENT_SECCOMP {
-                    let regs = wrapper.get_registers()?;
 
-                    // get Syscall from regs.orig_rax
-                    let caught_syscall = Syscall::try_from(regs.orig_rax as i32)?;
-                    // Getting the syscall handler
-                    let mapped_fn = trace_map.find_by_syscall(caught_syscall).take().unwrap();
-                    match mapped_fn(caught_syscall) {
-                        TraceAction::Continue => wrapper.continue_execution()?,
-                        TraceAction::Kill => {
-                            wrapper.kill_execution()?;
-                            // if the child is killed the parent should be killed too
-                            // todo(z0rw): exit gracefully
-                            std::process::exit(SIGKILL);
+                match sig {
+                    s if s == (SIGTRAP | 0x80) => {
+                        let regs = wrapper.get_registers()?;
+                        let caught_syscall =
+                            Syscall::try_from(regs.syscall_number() as i32).unwrap();
+                        if !in_syscall {
+                            in_syscall = true;
+                            // println!("ENTRY: syscall {:?}", caught_syscall);
+                            // If it's tracked by seccomp the second match arm will catch it
+                        } else {
+                            in_syscall = false;
+
+                            match post_intercept_map.find_by_syscall(caught_syscall).take() {
+                                Some(mapped_fn) => {
+                                    let interceptor = Interceptor::new(
+                                        caught_syscall,
+                                        regs,
+                                        wrapper.get_process().get_pid(),
+                                    );
+                                    match mapped_fn(interceptor) {
+                                        TraceAction::Kill => {
+                                            wrapper.kill_execution()?;
+                                            // if the child is killed the parent should be killed too
+                                            // todo(z0rw): exit gracefully
+                                            std::process::exit(SIGKILL);
+                                        }
+
+                                        _ => wrapper.syscall_trace()?,
+                                    }
+                                }
+                                None => wrapper.syscall_trace().unwrap(),
+                            };
+                            // println!("EXIT: return value {}", regs.return_value());
                         }
+                        wrapper.syscall_trace()?;
                     }
-                } else {
-                    wrapper.syscall_trace()?;
+
+                    _ if sig == libc::SIGTRAP && (status >> 16) == libc::PTRACE_EVENT_SECCOMP => {
+                        let regs = wrapper.get_registers()?;
+
+                        // get Syscall from regs.orig_rax
+                        let caught_syscall = Syscall::try_from(regs.syscall_number() as i32)?;
+
+                        // Getting the syscall handler
+                        match trace_map.find_by_syscall(caught_syscall).take() {
+                            Some(mapped_fn) => {
+                                match mapped_fn(caught_syscall) {
+                                    TraceAction::Kill => {
+                                        wrapper.kill_execution()?;
+                                        // if the child is killed the parent should be killed too
+                                        // todo(z0rw): exit gracefully
+                                        std::process::exit(SIGKILL);
+                                    }
+                                    _ => wrapper.continue_execution()?,
+                                }
+                            }
+                            None => {}
+                        };
+
+                        match intercept_map.find_by_syscall(caught_syscall).take() {
+                            Some(mapped_fn) => {
+                                let interceptor = Interceptor::new(
+                                    caught_syscall,
+                                    regs,
+                                    wrapper.get_process().get_pid(),
+                                );
+                                match mapped_fn(interceptor) {
+                                    TraceAction::Continue => wrapper.syscall_trace()?,
+                                    TraceAction::Kill => {
+                                        wrapper.kill_execution()?;
+                                        // if the child is killed the parent should be killed too
+                                        // todo(z0rw): exit gracefully
+                                        std::process::exit(SIGKILL);
+                                    }
+
+                                    TraceAction::SkipExit => wrapper.continue_execution()?,
+                                }
+                            }
+                            None => wrapper.syscall_trace().unwrap(),
+                        };
+                    } // println!("else branche- syscall_trace()");
+
+                    _ => {
+                        wrapper.syscall_trace()?;
+                    }
                 }
             }
         }
@@ -238,7 +322,7 @@ impl PtraceWrapper {
                 PTRACE_SETOPTIONS,
                 self.process.get_pid(),
                 std::ptr::null_mut::<c_void>(),
-                PTRACE_O_TRACESECCOMP as *mut c_void,
+                (PTRACE_O_TRACESECCOMP | PTRACE_O_TRACESYSGOOD) as *mut c_void,
             )
         };
         if ret == -1 {
@@ -247,6 +331,7 @@ impl PtraceWrapper {
                 std::io::Error::last_os_error(),
             ));
         }
+
         Ok(self)
     }
 
@@ -270,7 +355,7 @@ impl PtraceWrapper {
     }
 
     /// tete
-    pub fn get_registers(&self) -> Result<libc::user_regs_struct, SeccompError> {
+    pub fn get_registers(&self) -> Result<Registers, SeccompError> {
         let mut regs = MaybeUninit::<libc::user_regs_struct>::uninit();
 
         let ret = unsafe {
@@ -287,7 +372,27 @@ impl PtraceWrapper {
         }
 
         let regs = unsafe { regs.assume_init() };
-        Ok(regs)
+        Ok(Registers::from_raw(regs))
+    }
+
+    pub fn set_registers(
+        child_pid: pid_t,
+        mut user_regs: libc::user_regs_struct,
+    ) -> Result<(), SeccompError> {
+        let raw_ptr = ptr::from_mut(&mut user_regs);
+        let ret = unsafe {
+            ptrace(
+                PTRACE_SETREGS,
+                child_pid,
+                std::ptr::null_mut::<c_void>(),
+                raw_ptr as *mut c_void,
+            )
+        };
+
+        if ret == -1 {
+            return Err(io::Error::last_os_error().into());
+        }
+        Ok(())
     }
 
     /// cont
@@ -345,6 +450,8 @@ pub enum TraceAction {
     Continue,
     /// kill the target syscall process
     Kill,
+    /// Skip exit
+    SkipExit,
 }
 
 #[cfg(test)]

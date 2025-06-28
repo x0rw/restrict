@@ -1,3 +1,18 @@
+//! Example: Prometheus metrics exporter combined with a seccomp syscall trace and denial policy.
+//!
+//! This Rust example demonstrates:
+//! 1. Installing a Prometheus metrics recorder to export application metrics.
+//! 2. Defining a seccomp policy that:
+//!    - Allows all syscalls by default.
+//!    - Denies dangerous operations (Munmap, ExitGroup).
+//!    - Traces and logs each invocation of the Openat syscall.
+//! 3. Applying the policy and then performing a file open to trigger the trace.
+//! 4. Rendering and printing the collected Prometheus metrics.
+//!
+//! Usage:
+//! ```bash
+//! cargo run --example prometheus_metrics --features metrics
+//! ```
 use metrics_exporter_prometheus::PrometheusBuilder;
 use restrict::{
     policy::{Policy, Syscall},

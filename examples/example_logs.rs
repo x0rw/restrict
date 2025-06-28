@@ -1,3 +1,9 @@
+//! Example: Printing logs using tracing_subscriber
+//!
+//! Usage:
+//! ```bash
+//! cargo run --example exammple_logs
+//! ```
 use std::fs;
 
 use restrict::{

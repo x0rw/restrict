@@ -1,10 +1,12 @@
 pub use crate::{error::SeccompError, syscall::Syscall, wrapper::Action};
 use crate::{
     filter::{
+        intercept::{InterceptorFilter, InterceptorMap},
         seccomp::{self, SeccompFilter},
         tracer::{TracerFilter, TracerMap},
         RestrictFilter,
     },
+    interceptor::Interceptor,
     restrict_counter, restrict_info, restrict_warn,
     tracer::TracingHandle,
     wrapper::{PtraceWrapper, SeccompWrapper, TraceAction},
@@ -19,6 +21,8 @@ pub struct Policy {
     context: Option<SeccompWrapper>,
     pub(crate) seccomp_rules: Vec<SeccompFilter>,
     pub(crate) trace_rules: Vec<TracerFilter>,
+    pub(crate) pre_intercept: Vec<InterceptorFilter>,
+    pub(crate) post_intercept: Vec<InterceptorFilter>,
     trace: bool,
     verbose: bool,
 }
@@ -31,6 +35,8 @@ impl Policy {
             context: Some(SeccompWrapper::init_context(default)?),
             seccomp_rules: Vec::new(),
             trace_rules: Vec::new(),
+            pre_intercept: Vec::new(),
+            post_intercept: Vec::new(),
             trace: false,
             verbose: false,
         })
@@ -72,6 +78,33 @@ impl Policy {
         self
     }
 
+    /// Intercept syscalls and modify their registers at entry and at entry
+    pub fn entry_intercept<T>(&mut self, syscall: Syscall, interceptor: T) -> &mut Self
+    where
+        T: Fn(Interceptor) -> TraceAction + 'static,
+    {
+        restrict_counter!("restrict.policy.rule.entry_intercept", 1,
+                 "syscall_name" => format!("{:#?}",syscall));
+        restrict_info!("intercept syscall: {syscall:?} at entry");
+        self.pre_intercept
+            .push(InterceptorFilter::new(syscall, interceptor));
+        self.trace = true;
+        self
+    }
+
+    /// Intercept syscall at the exit to modify their return register
+    pub fn exit_intercept<T>(&mut self, syscall: Syscall, interceptor: T) -> &mut Self
+    where
+        T: Fn(Interceptor) -> TraceAction + 'static,
+    {
+        restrict_counter!("restrict.policy.rule.exit_intercept", 1,
+                 "syscall_name" => format!("{:#?}",syscall));
+        restrict_info!("Intercept syscall: {syscall:?} at exit");
+        self.post_intercept
+            .push(InterceptorFilter::new(syscall, interceptor));
+        self.trace = true;
+        self
+    }
     /// allow a syscall
     pub fn allow(&mut self, syscall: Syscall) -> &mut Self {
         restrict_counter!("restrict.policy.rule.allow", 1,
@@ -113,6 +146,7 @@ impl Policy {
             ));
             filter.apply(&mut context)?;
         }
+
         // apply seccomp TRACE rule specificallt
         for filter in self.trace_rules.iter() {
             restrict_info!(format!(
@@ -121,6 +155,7 @@ impl Policy {
             ));
             filter.apply(&mut context)?;
         }
+
         if self.trace {
             // Fork the current process:
             // - The parent enters an event loop to trace system calls made by the child.
@@ -137,8 +172,24 @@ impl Policy {
             let spawned = self.spawn_traced().unwrap();
             match spawned {
                 TracingHandle::Child => {
-                    restrict_info!("== [Child-process]: tracing is enabled(PTRACE_TRACEME)");
-                    restrict_info!("== [Child-process]: Raising SIGSTOP signal to sync with the parent process");
+                    for filter in self.post_intercept.iter() {
+                        restrict_info!(format!(
+                            "[+] Applying post Intercept filter for {:?}",
+                            filter.syscall()
+                        ));
+                        filter.apply(&mut context)?;
+                    }
+                    for filter in self.pre_intercept.iter() {
+                        restrict_info!(format!(
+                            "[+] Applying Pre Intercept filter for {:?}",
+                            filter.syscall()
+                        ));
+                        filter.apply(&mut context)?;
+                    }
+                    restrict_info!("[Child-process]: tracing is enabled(PTRACE_TRACEME)");
+                    restrict_info!(
+                        "[Child-process]: Raising SIGSTOP signal to sync with the parent process"
+                    );
                     // here tracing is already enabled
                     //
                     //loading the context in the child(only)
@@ -151,7 +202,7 @@ impl Policy {
                     // load the accumulated filters and start tracing
                     context.load()?;
 
-                    restrict_info!("== [Child-process]: Synced, LOADING filters succeded");
+                    restrict_info!("[Child-process]: Synced, LOADING filters succeded");
                 }
                 TracingHandle::Parent {
                     child_pid,
@@ -172,10 +223,19 @@ impl Policy {
                     // now its finally time for the loop
 
                     let trace_r = std::mem::take(&mut self.trace_rules);
+                    let intercept_r = std::mem::take(&mut self.pre_intercept);
+                    let post_intercept_r = std::mem::take(&mut self.post_intercept);
+
                     let mapped_tracers = TracerMap::from(trace_r);
+                    let mapped_intercepters = InterceptorMap::from(intercept_r);
+                    let mapped_post_intercepters = InterceptorMap::from(post_intercept_r);
 
                     restrict_info!("[Parent-process]: Listening to incoming syscalls from child process: {child_pid}");
-                    PtraceWrapper::with_pid(child_pid).event_loop(mapped_tracers)?;
+                    PtraceWrapper::with_pid(child_pid).event_loop(
+                        mapped_tracers,
+                        mapped_intercepters,
+                        mapped_post_intercepters,
+                    )?;
 
                     restrict_counter!("restrict.policy.action.parent.exit", 1);
                     std::process::exit(0);
