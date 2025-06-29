@@ -8,7 +8,7 @@ fn main() -> Result<(), SeccompError> {
 
     let mut filter = Policy::allow_all()?;
     filter.deny(Syscall::Write);
-    filter.deny(Syscall::Open);
+    filter.deny(Syscall::Openat);
 
     println!("This should work");
     filter.apply()?;

@@ -1,16 +1,11 @@
-FROM rust:1.78.0 AS builder
+FROM ubuntu:22.04
 
-WORKDIR /usr/src/app
+RUN apt-get update && apt-get install -y \
+    build-essential curl gcc pkg-config libclang-dev clang cmake
 
-COPY . .
+# Install Rustup
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
-RUN apt-get update && apt-get install -y libseccomp-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
-RUN cargo build --release
+ENV PATH="/root/.cargo/bin:${PATH}"
 
-FROM debian:bookworm-slim
-
-WORKDIR /usr/src/app
-
-# COPY --from=builder /usr/src/app/target/release/restrict ./
-
-CMD ["cargo", "test"]
+WORKDIR /project

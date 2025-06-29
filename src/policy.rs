@@ -123,14 +123,14 @@ impl Policy {
             .push(seccomp::SeccompFilter::new(syscall, Action::Kill));
         self
     }
-    /// disable io-uring bypass
-    pub fn disable_iouring_bypass(&mut self) -> &mut Self {
-        restrict_counter!("restrict.policy.disaable.iouring", 1);
-        restrict_warn!("Disable IoUring bypass");
-        self.deny(Syscall::IoUringEnter)
-            .deny(Syscall::IoUringSetup)
-            .deny(Syscall::IoUringRegister)
-    }
+    ///// disable io-uring bypass
+    //pub fn disable_iouring_bypass(&mut self) -> &mut Self {
+    //    restrict_counter!("restrict.policy.disaable.iouring", 1);
+    //    restrict_warn!("Disable IoUring bypass");
+    //    self.deny(Syscall::IoUringEnter)
+    //        .deny(Syscall::IoUringSetup)
+    //        .deny(Syscall::IoUringRegister)
+    //}
     /// apply
     pub fn apply(&mut self) -> Result<(), SeccompError> {
         let mut context = self.context.take().ok_or(SeccompError::Fork)?;
@@ -142,15 +142,6 @@ impl Policy {
             restrict_info!(format!(
                 "Applying {:?} filter for {:?}",
                 filter.action(),
-                filter.syscall()
-            ));
-            filter.apply(&mut context)?;
-        }
-
-        // apply seccomp TRACE rule specificallt
-        for filter in self.trace_rules.iter() {
-            restrict_info!(format!(
-                "[+] Applying Traceing filter for {:?}",
                 filter.syscall()
             ));
             filter.apply(&mut context)?;
@@ -172,6 +163,14 @@ impl Policy {
             let spawned = self.spawn_traced().unwrap();
             match spawned {
                 TracingHandle::Child => {
+                    // apply seccomp TRACE rule specificallt
+                    for filter in self.trace_rules.iter() {
+                        restrict_info!(format!(
+                            "[+] Applying Traceing filter for {:?}",
+                            filter.syscall()
+                        ));
+                        filter.apply(&mut context)?;
+                    }
                     for filter in self.post_intercept.iter() {
                         restrict_info!(format!(
                             "[+] Applying post Intercept filter for {:?}",

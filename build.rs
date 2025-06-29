@@ -1,5 +1,6 @@
 // build.rs
 use regex::Regex;
+use std::collections::HashMap;
 use std::env;
 use std::fs::{read_to_string, File};
 use std::io::Write;
@@ -10,29 +11,33 @@ fn main() {
     let arch = env::var("CARGO_CFG_TARGET_ARCH").expect("CARGO_CFG_TARGET_ARCH not set");
 
     let header_file = match arch.as_str() {
-        "x86_64" | "aarch64" => "unistd_64.h",
+        "x86_64" => "unistd_64.h",
         "x86" | "i386" | "arm" => "unistd_32.h",
+        "aarch64" => "unistd.h",
         other => panic!("Unsupported architecture: {}", other),
     };
 
     // dirs that may have unistd header
     let mut include_dirs = vec![
-        "/usr/include/asm".into(),
-        format!("/usr/include/{}-linux-gnu/asm", arch),
+        PathBuf::from("/usr/include/asm-generic"), // common fallback
+        PathBuf::from("/usr/include/asm"),
+        PathBuf::from(format!("/usr/include/{}-linux-gnu/asm", arch)),
+        PathBuf::from("/usr/include/linux"),
     ];
-    if let Ok(dir) = env::var("SYSCALL_INCLUDE_DIR") {
-        include_dirs.insert(0, dir);
-    }
+    // if let Ok(dir) = env::var("SYSCALL_INCLUDE_DIR") {
+    //     include_dirs.insert(0, dir);
+    // }
 
     let header_path = include_dirs
         .iter()
-        .map(|d| Path::new(d).join(header_file))
-        .find(|p| p.exists())
+        .map(|dir| dir.join(&header_file))
+        .find(|candidate| candidate.exists())
         .unwrap_or_else(|| {
-            panic!(
-                "Could not find {} in any of: {:?}",
-                header_file, include_dirs
-            )
+            eprintln!("Error: Could not find `{}` in any of:", header_file);
+            for dir in &include_dirs {
+                eprintln!("  - {}", dir.display());
+            }
+            panic!("Header file `{}` not found", header_file);
         });
 
     println!("cargo:rerun-if-changed={}", header_path.display());
@@ -52,9 +57,21 @@ fn main() {
 fn extract_syscalls(content: &str) -> Vec<(String, u32)> {
     let re = Regex::new(r"#define\s+__NR_([A-Za-z0-9_]+)\s+(\d+)").unwrap();
 
-    re.captures_iter(content)
-        .map(|cap| (cap[1].to_string(), cap[2].parse().unwrap()))
-        .collect()
+    let mut map = HashMap::new();
+
+    for cap in re.captures_iter(content) {
+        let name = cap[1].to_string();
+        let num: u32 = cap[2].parse().unwrap();
+
+        // Insert only if the number is not already mapped
+        // in aarch64 i found a syscall number with two aliases which causes issues
+        map.entry(num).or_insert(name);
+    }
+
+    // Return sorted by syscall number
+    let mut vec: Vec<_> = map.into_iter().collect();
+    vec.sort_by_key(|(num, _)| *num);
+    vec.into_iter().map(|(num, name)| (name, num)).collect()
 }
 
 fn to_camel_case(input: &str) -> String {

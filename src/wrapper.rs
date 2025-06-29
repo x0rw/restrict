@@ -203,9 +203,8 @@ impl PtraceWrapper {
         let wrapper = PtraceWrapper::with_pid(child);
         let mut in_syscall = false;
         // println!("[!] child pid {}", wrapper.get_process().get_pid());
+        let mut status = 0;
         loop {
-            let mut status = 0;
-
             let ret = unsafe { waitpid(child, &mut status, 0) };
 
             if ret == -1 {
@@ -354,7 +353,6 @@ impl PtraceWrapper {
         Ok(self)
     }
 
-    /// tete
     pub fn get_registers(&self) -> Result<Registers, SeccompError> {
         let mut regs = MaybeUninit::<libc::user_regs_struct>::uninit();
 
@@ -460,9 +458,9 @@ mod tests {
 
     #[test]
     fn wrapper_resolve_syscall() {
-        let open_syscall = SeccompWrapper::resolve_syscall("open").unwrap();
+        let open_syscall = SeccompWrapper::resolve_syscall("openat").unwrap();
         // compare with the generated syscall.rs
-        assert_eq!(open_syscall, Syscall::Open as i32);
+        assert_eq!(open_syscall, Syscall::Openat as i32);
     }
 
     #[test]

@@ -23,8 +23,8 @@ pub fn install_truncating_filter(write_fd: i32) -> Result<(), Box<dyn std::error
 
     filter.entry_intercept(Syscall::Write, move |mut interceptor| {
         // only truncate writes to our target fd
-        if interceptor.registers.rdi() as i32 == write_fd {
-            interceptor.registers.set_rdx(12);
+        if interceptor.registers.get("rdi").unwrap() as i32 == write_fd {
+            interceptor.registers.set("rdx", 12).unwrap();
             interceptor.commit_regs().unwrap();
         }
         TraceAction::Continue
