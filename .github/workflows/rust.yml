@@ -11,14 +11,26 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
+    container:
+      image: x0rw/restrict-ci:latest
+      options: --cap-add=SYS_ADMIN --security-opt seccomp=unconfined
+
     steps:
-    - name: Run install libseccomp
-      run: sudo apt-get install libseccomp-dev
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v4
+
+      - name: Copy project files
+        run: cp -r . /home/runner/project
+
+      - name: Set working directory
+        working-directory: /home/runner/project
+        run: echo "Working in /home/runner/project"
+
+      - name: Build
+        working-directory: /home/runner/project
+        run: cargo build --verbose
+
+      - name: Run tests
+        working-directory: /home/runner/project
+        run: cargo test --verbose
