@@ -22,6 +22,8 @@ WORKDIR /home/runner/project
 # Install Rust for root (if you want to keep rustup for runner, do it differently)
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
+RUN /root/.cargo/bin/rustup default stable
+
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 COPY . /home/runner/project
