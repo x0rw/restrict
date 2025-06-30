@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set Rust stable toolchain
+        run: rustup default stable
+        
       - name: Copy project files
         run: cp -r . /home/runner/project
 
