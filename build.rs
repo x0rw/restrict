@@ -2,7 +2,7 @@
 use regex::Regex;
 use std::collections::HashMap;
 use std::env;
-use std::fs::{read_to_string, File};
+use std::fs::{File, read_to_string};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -18,7 +18,7 @@ fn main() {
     };
 
     // dirs that may have unistd header
-    let mut include_dirs = vec![
+    let include_dirs = vec![
         PathBuf::from("/usr/include/asm-generic"), // common fallback
         PathBuf::from("/usr/include/asm"),
         PathBuf::from(format!("/usr/include/{}-linux-gnu/asm", arch)),

@@ -7,7 +7,7 @@ use crate::{
         RestrictFilter,
     },
     interceptor::Interceptor,
-    restrict_counter, restrict_info, restrict_warn,
+    restrict_counter, restrict_info,
     tracer::TracingHandle,
     wrapper::{PtraceWrapper, SeccompWrapper, TraceAction},
 };
