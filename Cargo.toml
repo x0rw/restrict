@@ -1,6 +1,6 @@
 [package]
 name = "restrict" 
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021" 
 description = "A crate to allow, deny, or trace Linux syscalls with an ergonomic, auto-generated enum customized for your system architecture."
 license = "MIT"
@@ -48,6 +48,7 @@ logging = [
 metrics = [
     "dep:metrics",
 ]
+
 [lib]
 name = "restrict"
 
