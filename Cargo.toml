@@ -1,6 +1,6 @@
 [package]
 name = "restrict" 
-version = "0.3.1"
+version = "0.2.1"
 edition = "2021" 
 description = "A crate to allow, deny, or trace Linux syscalls with an ergonomic, auto-generated enum customized for your system architecture."
 license = "MIT"
@@ -9,9 +9,7 @@ homepage        = "https://github.com/x0rw/restrict"
 documentation = "https://docs.rs/restrict/latest"
 readme = "README.md"   
 keywords        = [
-    "linux", "security", "syscall", "sandbox",
-    "seccomp", "ptrace", "policy", "tracing",
-    "container", "isolation"
+    "linux", "seccomp", "ptrace", "policy", "container" 
 ]
 categories      = [
     "api-bindings",
