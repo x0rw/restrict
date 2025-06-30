@@ -76,6 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+### Syscall Blocking:
 
 If you prefer blocked syscalls to return a specific errno instead of killing the process:
 
@@ -96,6 +97,7 @@ policy
     .allow(Syscall::Write)
     .apply()?;
 ```
+### Syscall Tracing:
 
 To trace or log a syscall at runtime, register a handler:
 
@@ -116,6 +118,32 @@ println!("File open result: {:?}", result);
 ```
 
 The handler must return either `TraceAction::Continue` (allow the syscall) or `TraceAction::Kill` (abort the process).
+### Advanced syscall interception and register manipulation:
+To intercept and manipulate a syscall arguments/return values and registers at entry and exit:
+```rust
+    let mut filter = Policy::allow_all().unwrap();
+    // intercept time() syscall at exit and replace its return value with 3
+    filter.exit_intercept(Syscall::Time, |mut interceptor| {
+        interceptor.registers.set_return_value(3);  // set the return register to 3 (rax in x86-64)
+        interceptor.commit_regs().unwrap();         // do this after every change
+        TraceAction::Continue                       // Continue tracing
+    });
+    filter.apply().unwrap();
+```
+another example:
+```rust
+    // intercept write() syscall at entry
+    filter.entry_intercept(Syscall::Write, move |mut interceptor| {
+        // compare rdi register to 1 
+        if interceptor.registers.get("rdi").unwrap() as i32 == 1 {
+            interceptor.registers.set("rdx", 12).unwrap();  // change rdx to 12
+            interceptor.commit_regs().unwrap();
+        }
+        TraceAction::Continue 
+    });
+```
+
+make sure to check the `tests/` and `examples/`
 
 ---
 
