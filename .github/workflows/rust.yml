@@ -15,7 +15,8 @@ jobs:
 
     container:
       image: ghcr.io/x0rw/restrict-ci:latest
-      options: --cap-add=SYS_ADMIN --security-opt seccomp=unconfined --user root
+      options: --cap-add=SYS_ADMIN --security-opt seccomp=unconfined --user 1001:1001
+
 
     steps:
       - uses: actions/checkout@v4
