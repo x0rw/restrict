@@ -20,6 +20,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: /home/runner/project
+
+      - name: Fix permissions
+        run: sudo chown -R runner:runner /home/runner/project
 
       - name: Set Rust stable toolchain
         run: rustup default stable
