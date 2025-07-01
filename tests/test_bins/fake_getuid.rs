@@ -15,11 +15,13 @@ fn main() {
     let uid = unsafe { syscall_uid(Syscall::Getuid) };
     println!("{}", uid);
 }
-// this may look weird, why calling a syscall from asm instead of using libc::getuid()
+// this may look weird, why calling a syscall from asm instead of using libc::getuid()?
 // this is mainly because of VDSO(virtual dynamic shared object) which instead of calling the real
 // syscall it uses a shared object in user space to look up the getuid value, the more mmodern the kernel and glibc is, the
 // more syscall are VDSO'd, this issue doesn't happen locally but it happens undeterministically in
 // github actions
+// UPDATE: this turned out to not be the case here but i left it like this ssince its not causing
+// any issues
 #[cfg(target_arch = "x86_64")]
 unsafe fn syscall_uid(syscall_num: Syscall) -> u64 {
     let nr = syscall_num as u64;

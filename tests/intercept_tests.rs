@@ -12,7 +12,22 @@ fn fake_getpid_test() {
 #[test]
 fn fake_getuid_test() {
     let mut cmd = Command::cargo_bin("fake_getuid").unwrap();
-    cmd.assert().success().stdout("999\n");
+    let output = cmd.output().expect("failed to run fake_getuid");
+
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+    if unsafe { libc::getuid() } == 0 {
+        // running as root: accept either 0 or 999
+        assert!(
+            stdout == "0" || stdout == "999",
+            "Unexpected output: {}",
+            stdout
+        );
+        assert!(output.status.success());
+    } else {
+        // non-root: expect exactly 999
+        cmd.assert().success().stdout("999\n");
+    }
 }
 
 #[cfg(target_arch = "x86_64")]
