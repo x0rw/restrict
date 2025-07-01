@@ -1,4 +1,4 @@
-name: Rust
+name: Rust CI
 
 on:
   push:
@@ -15,31 +15,25 @@ jobs:
 
     container:
       image: ghcr.io/x0rw/restrict-ci:latest
-      options: --cap-add=SYS_ADMIN --security-opt seccomp=unconfined --user 1001:1001
-
+      options: >-
+        --cap-add=SYS_ADMIN
+        --security-opt seccomp=unconfined
+        --user 1001:1001
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code into project dir
+        uses: actions/checkout@v4
         with:
           path: /home/runner/project
 
-      - name: Fix permissions
+      - name: Fix workspace permissions
         run: sudo chown -R runner:runner /home/runner/project
 
       - name: Set Rust stable toolchain
         run: rustup default stable
-        
-      - name: Copy project files
-        run: cp -r . /home/runner/project
 
-      - name: Set working directory
-        working-directory: /home/runner/project
-        run: echo "Working in /home/runner/project"
-
-      - name: Build
-        working-directory: /home/runner/project
-        run: cargo build --verbose
-
-      - name: Run tests
-        working-directory: /home/runner/project
-        run: cargo test --verbose
+      - name: Build & Test
+        run: |
+          cd /home/runner/project
+          cargo build --verbose
+          cargo test  --verbose
