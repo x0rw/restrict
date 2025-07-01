@@ -1,29 +1,22 @@
-FROM ubuntu:22.04
+FROM rust:slim-bookworm AS builder
 
-# Install dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    gcc \
-    pkg-config \
-    libclang-dev \
     clang \
     cmake \
+    libclang-dev \
     libseccomp-dev \
+    pkg-config \
+    qemu-user-static \
     sudo \
     ca-certificates \
-    qemu-user-static
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create a non-root user
-RUN useradd -ms /bin/bash runner && echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# Create non-root user
+RUN useradd -m -u 1001 -s /bin/bash runner && echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
+# Use non-root user
+USER runner
 WORKDIR /home/runner/project
 
-# Install Rust for root (if you want to keep rustup for runner, do it differently)
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+COPY --chown=runner . .
 
-RUN /root/.cargo/bin/rustup default stable
-
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-COPY . /home/runner/project
